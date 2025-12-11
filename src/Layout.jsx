@@ -37,6 +37,10 @@ const navItems = [
   { name: "Fuel", icon: Fuel, page: "Fuel" },
 ];
 
+const safetyItems = [
+  { name: "High-Risk Workers", icon: Users, page: "HighRiskWorkers" },
+];
+
 const adminItems = [
   { name: "Hire Providers", icon: Building2, page: "HireProviders" },
   { name: "Contracts", icon: FileText, page: "Contracts" },
@@ -118,6 +122,14 @@ function LayoutContent({ children, currentPageName }) {
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
+              <NavLink key={item.page} item={item} onClick={() => setSidebarOpen(false)} />
+            ))}
+
+            {/* Safety & HVNL Section */}
+            <div className="pt-4 pb-2">
+              <p className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Safety & HVNL</p>
+            </div>
+            {safetyItems.map((item) => (
               <NavLink key={item.page} item={item} onClick={() => setSidebarOpen(false)} />
             ))}
 

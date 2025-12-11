@@ -13,6 +13,7 @@ import Fuel from './pages/Fuel';
 import HireProviders from './pages/HireProviders';
 import Contracts from './pages/Contracts';
 import WorkerRiskProfile from './pages/WorkerRiskProfile';
+import HighRiskWorkers from './pages/HighRiskWorkers';
 import __Layout from './Layout.jsx';
 
 
@@ -32,6 +33,7 @@ export const PAGES = {
     "HireProviders": HireProviders,
     "Contracts": Contracts,
     "WorkerRiskProfile": WorkerRiskProfile,
+    "HighRiskWorkers": HighRiskWorkers,
 }
 
 export const pagesConfig = {
