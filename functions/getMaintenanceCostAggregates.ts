@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
           assetCount: 0,
           serviceCount: 0,
           totalKm: 0,
-          totalHours: 0,
+          totalShifts: 0,
         };
       }
       byClass[fc].assetCount++;
