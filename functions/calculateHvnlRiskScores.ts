@@ -144,42 +144,48 @@ Deno.serve(async (req) => {
     // Identify high-risk assets for notifications
     const highRiskAssets = riskScores.filter(r => r.risk_level === 'High');
 
-    // Send notification if there are high-risk assets (optional - can be called separately)
+    // Send notification if there are high-risk assets
     if (highRiskAssets.length > 0) {
-      const emailBody = `
-        <h2>⚠️ HVNL High-Risk Assets Alert</h2>
-        <p><strong>${highRiskAssets.length} HVNL-critical assets</strong> have been identified as high-risk (score > 60).</p>
-        <h3>Top 10 High-Risk Assets:</h3>
-        <table border="1" cellpadding="8" style="border-collapse: collapse;">
-          <tr style="background-color: #f3f4f6;">
-            <th>Asset Code</th>
-            <th>State</th>
-            <th>Risk Score</th>
-            <th>Overdue Plans</th>
-            <th>Open Defects</th>
-          </tr>
-          ${highRiskAssets.slice(0, 10).map(asset => `
-            <tr>
-              <td>${asset.asset_code}</td>
-              <td>${asset.state}</td>
-              <td style="color: #dc2626; font-weight: bold;">${asset.risk_score}</td>
-              <td>${asset.hvnl_overdue_count}</td>
-              <td>${asset.open_critical_defects}</td>
+      const fleetManagerEmail = await getNotificationEmail(base44, 'FleetManagerEmail');
+      
+      if (fleetManagerEmail) {
+        const emailBody = `
+          <h2>⚠️ HVNL High-Risk Assets Alert</h2>
+          <p><strong>${highRiskAssets.length} HVNL-critical assets</strong> have been identified as high-risk (score > 60).</p>
+          <h3>Top 10 High-Risk Assets:</h3>
+          <table border="1" cellpadding="8" style="border-collapse: collapse;">
+            <tr style="background-color: #f3f4f6;">
+              <th>Asset Code</th>
+              <th>State</th>
+              <th>Risk Score</th>
+              <th>Overdue Plans</th>
+              <th>Open Defects</th>
             </tr>
-          `).join('')}
-        </table>
-        <p style="margin-top: 20px;">Please review and take immediate action on these assets.</p>
-      `;
+            ${highRiskAssets.slice(0, 10).map(asset => `
+              <tr>
+                <td>${asset.asset_code}</td>
+                <td>${asset.state}</td>
+                <td style="color: #dc2626; font-weight: bold;">${asset.risk_score}</td>
+                <td>${asset.hvnl_overdue_count}</td>
+                <td>${asset.open_critical_defects}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <p style="margin-top: 20px;">Please review and take immediate action on these assets.</p>
+        `;
 
-      try {
-        await base44.asServiceRole.integrations.Core.SendEmail({
-          from_name: 'KPI Fleet IQ - HVNL Risk Alerts',
-          to: 'fleet.manager@kpi.com.au',
-          subject: `🚨 HVNL High-Risk Assets Alert (${highRiskAssets.length} assets)`,
-          body: emailBody,
-        });
-      } catch (emailError) {
-        console.error('Failed to send HVNL risk notification:', emailError);
+        try {
+          await base44.asServiceRole.integrations.Core.SendEmail({
+            from_name: 'KPI Fleet IQ - HVNL Risk Alerts',
+            to: fleetManagerEmail,
+            subject: `🚨 HVNL High-Risk Assets Alert (${highRiskAssets.length} assets)`,
+            body: emailBody,
+          });
+        } catch (emailError) {
+          console.error('Failed to send HVNL risk notification:', emailError);
+        }
+      } else {
+        console.error('HVNL risk notification: No email configured for FleetManagerEmail');
       }
     }
 
