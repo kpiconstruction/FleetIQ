@@ -73,10 +73,22 @@ export default function PrestartDetail() {
   const submitDefectWorkOrder = (data) => {
     const enrichedData = {
       ...data,
+      linked_prestart_defect_id: workOrderDialogDefect.id,
       notes_internal: `Raised from Prestart Defect: ${workOrderDialogDefect.defect_description}\n\n${data.notes_internal || ""}`,
     };
     createWorkOrderMutation.mutate(enrichedData);
   };
+
+  const { data: relatedWorkOrders = [] } = useQuery({
+    queryKey: ["defectWorkOrders", prestartId],
+    queryFn: async () => {
+      if (!prestartDefects.length) return [];
+      const defectIds = prestartDefects.map(d => d.id);
+      const allWOs = await base44.entities.MaintenanceWorkOrder.list("-raised_datetime", 100);
+      return allWOs.filter(wo => defectIds.includes(wo.linked_prestart_defect_id));
+    },
+    enabled: !!prestartId && prestartDefects.length > 0,
+  });
 
   // Group items by category
   const itemsByCategory = prestartItems.reduce((acc, item) => {
@@ -289,7 +301,44 @@ export default function PrestartDetail() {
         {/* Defects Tab */}
         <TabsContent value="defects">
           {prestartDefects.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Related Work Orders */}
+              {relatedWorkOrders.length > 0 && (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                    Related Work Orders ({relatedWorkOrders.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {relatedWorkOrders.map((wo) => (
+                      <div key={wo.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                        <div>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">
+                            {wo.work_order_type} - {wo.priority}
+                          </p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Raised: {format(new Date(wo.raised_datetime), "d MMM yyyy")}
+                            {wo.due_date && ` • Due: ${format(new Date(wo.due_date), "d MMM yyyy")}`}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            wo.status === "Completed"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : wo.status === "InProgress"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }
+                        >
+                          {wo.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Defects List */}
               {prestartDefects.map((defect) => (
                 <div key={defect.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                   <div className="flex items-start justify-between mb-3">
@@ -354,6 +403,7 @@ export default function PrestartDetail() {
             raised_from: "PrestartDefect",
             priority: workOrderDialogDefect.severity === "Critical" || workOrderDialogDefect.severity === "High" ? "SafetyCritical" : "Major",
             notes_for_provider: workOrderDialogDefect.defect_description,
+            linked_prestart_defect_id: workOrderDialogDefect.id,
           }}
           onSubmit={submitDefectWorkOrder}
           isSubmitting={createWorkOrderMutation.isPending}

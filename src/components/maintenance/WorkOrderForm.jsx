@@ -20,7 +20,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 
 export default function WorkOrderForm({ 
   open, 
@@ -46,6 +47,8 @@ export default function WorkOrderForm({
     notes_for_provider: defaultValues.notes_for_provider || "",
     maintenance_plan_id: defaultValues.maintenance_plan_id || "",
     maintenance_template_id: defaultValues.maintenance_template_id || "",
+    linked_prestart_defect_id: defaultValues.linked_prestart_defect_id || "",
+    linked_incident_id: defaultValues.linked_incident_id || "",
   });
 
   const { data: hireProviders = [] } = useQuery({
@@ -73,6 +76,8 @@ export default function WorkOrderForm({
     if (!cleanData.maintenance_template_id) delete cleanData.maintenance_template_id;
     if (!cleanData.assigned_to_hire_provider_id) delete cleanData.assigned_to_hire_provider_id;
     if (!cleanData.due_date) delete cleanData.due_date;
+    if (!cleanData.linked_prestart_defect_id) delete cleanData.linked_prestart_defect_id;
+    if (!cleanData.linked_incident_id) delete cleanData.linked_incident_id;
 
     onSubmit(cleanData);
   };
@@ -102,6 +107,24 @@ export default function WorkOrderForm({
                 Scheduled work orders from Schedule require a Maintenance Template
               </AlertDescription>
             </Alert>
+          )}
+
+          {/* Show linked defect/incident badges */}
+          {(formData.linked_prestart_defect_id || formData.linked_incident_id) && (
+            <div className="flex gap-2">
+              {formData.linked_prestart_defect_id && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                  <LinkIcon className="w-3 h-3 mr-1" />
+                  Linked to Prestart Defect
+                </Badge>
+              )}
+              {formData.linked_incident_id && (
+                <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
+                  <LinkIcon className="w-3 h-3 mr-1" />
+                  Linked to Incident
+                </Badge>
+              )}
+            </div>
           )}
 
           {/* Work Order Type and Source */}
