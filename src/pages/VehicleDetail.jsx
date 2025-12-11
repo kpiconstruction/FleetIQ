@@ -443,6 +443,16 @@ export default function VehicleDetail() {
                           ? `${maintenanceStatus.nextDueOdometer.toLocaleString()} km`
                           : "Not scheduled"}
                       </p>
+                      {vehicle?.current_odometer_km && (
+                        <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1">
+                          Current: {vehicle.current_odometer_km.toLocaleString()} km
+                          {vehicle.odometer_data_confidence === "Low" && (
+                            <span className="ml-1 text-amber-600 dark:text-amber-400" title="Odometer data quality is low">
+                              ⚠️
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -536,7 +546,26 @@ export default function VehicleDetail() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {plan.next_due_odometer_km ? `${plan.next_due_odometer_km.toLocaleString()} km` : "-"}
+                            {plan.next_due_odometer_km ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium">{plan.next_due_odometer_km.toLocaleString()} km</span>
+                                {plan.current_odometer_km && (
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    Current: {plan.current_odometer_km.toLocaleString()} km
+                                    {plan.odometer_source && (
+                                      <span className="ml-1">
+                                        ({plan.odometer_source === "Prestart" ? "Prestart" : plan.odometer_source})
+                                      </span>
+                                    )}
+                                    {plan.odometer_confidence === "Low" && (
+                                      <span className="ml-1 text-amber-600 dark:text-amber-400" title="Prestart odometer looks inconsistent – please verify reading">
+                                        ⚠️
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            ) : "-"}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={statusColor}>

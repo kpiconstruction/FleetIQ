@@ -1,13 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { getBestOdometerSnapshot } from './services/odometerSnapshot.js';
 
 /**
  * Computes derived scheduling fields for a MaintenancePlan
  * @param {Object} plan - MaintenancePlan entity
  * @param {Object} vehicle - Vehicle entity
  * @param {Object} template - MaintenanceTemplate entity
+ * @param {Object} odometerSnapshot - Best odometer reading for vehicle
  * @returns {Object} Computed scheduling details
  */
-function computePlanDerivedFields(plan, vehicle, template) {
+function computePlanDerivedFields(plan, vehicle, template, odometerSnapshot) {
   if (!vehicle || !template) {
     return {
       next_due_date: null,
@@ -67,16 +69,21 @@ function computePlanDerivedFields(plan, vehicle, template) {
   }
 
   // Check odometer-based overdue (overrides date-based if triggered)
-  if (nextDueOdometer && vehicle.current_odometer_km && vehicle.current_odometer_km >= nextDueOdometer) {
+  // Use odometer snapshot instead of vehicle.current_odometer_km
+  const currentOdo = odometerSnapshot?.odometer_km || vehicle.current_odometer_km;
+  if (nextDueOdometer && currentOdo && currentOdo >= nextDueOdometer) {
     isOverdue = true;
     status = 'Overdue';
     // For odometer-based overdue, daysOverdue represents km over
-    daysOverdue = vehicle.current_odometer_km - nextDueOdometer;
+    daysOverdue = currentOdo - nextDueOdometer;
   }
 
   return {
     next_due_date: nextDueDate ? nextDueDate.toISOString().split('T')[0] : null,
     next_due_odometer_km: nextDueOdometer,
+    current_odometer_km: currentOdo,
+    odometer_source: odometerSnapshot?.source || 'Unknown',
+    odometer_confidence: odometerSnapshot?.confidence || 'Unknown',
     status,
     days_until_due: !isOverdue ? daysUntilDue : null,
     days_overdue: isOverdue ? daysOverdue : null,
@@ -131,6 +138,14 @@ Deno.serve(async (req) => {
 
     const filteredVehicleIds = new Set(filteredVehicles.map(v => v.id));
 
+    // Fetch odometer snapshots for all filtered vehicles
+    const odometerSnapshots = {};
+    await Promise.all(
+      filteredVehicles.map(async (vehicle) => {
+        odometerSnapshots[vehicle.id] = await getBestOdometerSnapshot(base44, vehicle.id);
+      })
+    );
+
     // Compute enriched plans
     const enrichedPlans = maintenancePlans
       .filter(plan => filteredVehicleIds.has(plan.vehicle_id))
@@ -140,7 +155,8 @@ Deno.serve(async (req) => {
 
         if (!vehicle || !template) return null;
 
-        const computed = computePlanDerivedFields(plan, vehicle, template);
+        const odometerSnapshot = odometerSnapshots[plan.vehicle_id];
+        const computed = computePlanDerivedFields(plan, vehicle, template, odometerSnapshot);
 
         // Apply date range filter if provided
         if (dateRangeStart && dateRangeEnd && computed.next_due_date) {
