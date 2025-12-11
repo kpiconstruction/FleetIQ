@@ -29,26 +29,29 @@ export default function WorkOrderForm({
   vehicleId, 
   vehicle,
   defaultValues = {},
+  prefillData = {},
   onSubmit,
   isSubmitting = false
 }) {
+  const mergedDefaults = { ...defaultValues, ...prefillData };
+  
   const [formData, setFormData] = useState({
     vehicle_id: vehicleId,
-    work_order_type: defaultValues.work_order_type || "Corrective",
-    raised_from: defaultValues.raised_from || "Manual",
-    raised_datetime: defaultValues.raised_datetime || new Date().toISOString(),
-    due_date: defaultValues.due_date || "",
-    status: defaultValues.status || "Open",
-    priority: defaultValues.priority || "Routine",
-    odometer_at_raise: defaultValues.odometer_at_raise || vehicle?.current_odometer_km || 0,
-    assigned_to_workshop_name: defaultValues.assigned_to_workshop_name || "",
-    assigned_to_hire_provider_id: defaultValues.assigned_to_hire_provider_id || "",
-    notes_internal: defaultValues.notes_internal || "",
-    notes_for_provider: defaultValues.notes_for_provider || "",
-    maintenance_plan_id: defaultValues.maintenance_plan_id || "",
-    maintenance_template_id: defaultValues.maintenance_template_id || "",
-    linked_prestart_defect_id: defaultValues.linked_prestart_defect_id || "",
-    linked_incident_id: defaultValues.linked_incident_id || "",
+    work_order_type: mergedDefaults.work_order_type || "Corrective",
+    raised_from: mergedDefaults.raised_from || "Manual",
+    raised_datetime: mergedDefaults.raised_datetime || new Date().toISOString(),
+    due_date: mergedDefaults.due_date || "",
+    status: mergedDefaults.status || "Open",
+    priority: mergedDefaults.priority || "Routine",
+    odometer_at_raise: mergedDefaults.odometer_at_raise || vehicle?.current_odometer_km || 0,
+    assigned_to_workshop_name: mergedDefaults.assigned_to_workshop_name || "",
+    assigned_to_hire_provider_id: mergedDefaults.assigned_to_hire_provider_id || "",
+    notes_internal: mergedDefaults.notes_internal || "",
+    notes_for_provider: mergedDefaults.notes_for_provider || "",
+    maintenance_plan_id: mergedDefaults.maintenance_plan_id || "",
+    maintenance_template_id: mergedDefaults.maintenance_template_id || "",
+    linked_prestart_defect_id: mergedDefaults.linked_prestart_defect_id || "",
+    linked_incident_id: mergedDefaults.linked_incident_id || "",
   });
 
   const { data: hireProviders = [] } = useQuery({
