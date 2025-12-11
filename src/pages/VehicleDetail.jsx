@@ -593,28 +593,26 @@ export default function VehicleDetail() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {can.createWorkOrder ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRaiseWorkOrder(plan)}
-                                className="text-xs"
-                              >
-                                <Plus className="w-3 h-3 mr-1" />
-                                Raise WO
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled
-                                className="text-xs"
-                                title="FleetAdmin or WorkshopOps role required"
-                              >
-                                <Lock className="w-3 h-3 mr-1" />
-                                Raise WO
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRaiseWorkOrder(plan)}
+                              className="text-xs"
+                              disabled={!can.createWorkOrder}
+                              title={!can.createWorkOrder ? "FleetAdmin or WorkshopOps role required" : ""}
+                            >
+                              {can.createWorkOrder ? (
+                                <>
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  Raise WO
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-3 h-3 mr-1" />
+                                  Raise WO
+                                </>
+                              )}
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -728,7 +726,7 @@ export default function VehicleDetail() {
                                   </Badge>
                                 )
                               )
-                            ) : wo.status === "Open" && can.updateWorkOrder ? (
+                            ) : wo.status === "Open" && can.completeWorkOrder ? (
                               <Button
                                 size="sm"
                                 variant="outline"

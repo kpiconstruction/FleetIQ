@@ -8,11 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Zap, AlertTriangle, Save, RefreshCw } from "lucide-react";
+import { Settings, Zap, AlertTriangle, Save, RefreshCw, Lock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AutomationControl() {
-  const { isFleetAdmin } = usePermissions();
+  const { isFleetAdmin, can, fleetRole } = usePermissions();
   const queryClient = useQueryClient();
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -55,6 +55,10 @@ export default function AutomationControl() {
   };
 
   const handleSaveConfig = (key, value, valueType, description, category) => {
+    if (!can.editAutomationSettings) {
+      alert("You do not have permission to edit automation settings.");
+      return;
+    }
     createOrUpdateMutation.mutate({
       key,
       value: String(value),
@@ -65,15 +69,19 @@ export default function AutomationControl() {
     });
   };
 
-  if (!isFleetAdmin) {
+  if (!can.editAutomationSettings) {
     return (
-      <div className="p-6 lg:p-8">
-        <Alert variant="destructive">
-          <AlertTriangle className="w-4 h-4" />
-          <AlertDescription>
+      <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
+          <Lock className="w-16 h-16 text-rose-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+          <p className="text-slate-600 mb-4">
             Only Fleet Admins can access automation settings.
-          </AlertDescription>
-        </Alert>
+          </p>
+          <p className="text-sm text-slate-500">
+            Your current role: <strong>{fleetRole || "Viewer"}</strong>
+          </p>
+        </div>
       </div>
     );
   }

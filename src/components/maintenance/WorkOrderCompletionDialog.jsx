@@ -173,10 +173,12 @@ export default function WorkOrderCompletionDialog({
               <Input
                 value={purchaseOrderNumber}
                 onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                placeholder="Enter PO number"
+                placeholder="Enter PO number (required)"
                 className="font-mono"
               />
-              <p className="text-xs text-slate-500">Required for owned fleet work orders</p>
+              <p className="text-xs text-slate-500 font-medium">
+                ✓ Required for all owned fleet work order completions
+              </p>
             </div>
           )}
 
@@ -212,14 +214,14 @@ export default function WorkOrderCompletionDialog({
                 <Input
                   type="number"
                   step="0.1"
-                  min="0"
+                  min="0.1"
                   value={confirmedDowntimeHours}
                   onChange={(e) => setConfirmedDowntimeHours(e.target.value)}
-                  placeholder="0.0"
+                  placeholder="0.0 (required)"
                   disabled={!canConfirmHire}
                 />
-                <p className="text-xs text-violet-600 dark:text-violet-400">
-                  Total hours the asset was unavailable for this work
+                <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+                  ✓ Total hours the asset was unavailable - must be greater than 0
                 </p>
               </div>
             </div>

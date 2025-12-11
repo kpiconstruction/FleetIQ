@@ -68,6 +68,10 @@ export default function NotificationSettings() {
   });
 
   const handleSave = (config) => {
+    if (!can.editNotificationSettings) {
+      alert("You do not have permission to edit notification settings.");
+      return;
+    }
     updateMutation.mutate({
       id: config.id,
       data: {
@@ -78,8 +82,22 @@ export default function NotificationSettings() {
   };
 
   const handleAdd = () => {
+    if (!can.editNotificationSettings) {
+      alert("You do not have permission to add notification settings.");
+      return;
+    }
     if (!newConfig.key || !newConfig.value) return;
     createMutation.mutate(newConfig);
+  };
+
+  const handleDelete = (id) => {
+    if (!can.editNotificationSettings) {
+      alert("You do not have permission to delete notification settings.");
+      return;
+    }
+    if (confirm("Delete this notification config?")) {
+      deleteMutation.mutate(id);
+    }
   };
 
   if (!isFleetAdmin) {
@@ -212,11 +230,7 @@ export default function NotificationSettings() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  if (confirm("Delete this notification config?")) {
-                                    deleteMutation.mutate(config.id);
-                                  }
-                                }}
+                                onClick={() => handleDelete(config.id)}
                               >
                                 <Trash2 className="w-3 h-3 text-rose-600" />
                               </Button>
