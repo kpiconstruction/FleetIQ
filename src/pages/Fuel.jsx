@@ -103,8 +103,8 @@ export default function Fuel() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Fuel Transactions</h1>
-          <p className="text-slate-500 mt-1">{filteredTransactions.length} transactions</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Fuel Transactions</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{filteredTransactions.length} transactions</p>
         </div>
         <Button variant="outline" onClick={exportToCSV}>
           <Download className="w-4 h-4 mr-2" />
@@ -114,17 +114,17 @@ export default function Fuel() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Spend</p>
-          <p className="text-2xl font-bold text-slate-900">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Spend</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Litres</p>
-          <p className="text-2xl font-bold text-slate-900">{totalLitres.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}L</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Litres</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{totalLitres.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}L</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Avg Price/Litre</p>
-          <p className="text-2xl font-bold text-slate-900">${avgUnitPrice.toFixed(3)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Avg Price/Litre</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">${avgUnitPrice.toFixed(3)}</p>
         </div>
       </div>
 

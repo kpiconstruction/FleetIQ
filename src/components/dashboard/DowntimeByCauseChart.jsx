@@ -12,8 +12,8 @@ const COLORS = ["#6366f1", "#f59e0b", "#10b981", "#94a3b8"];
 
 export default function DowntimeByCauseChart({ data }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-      <h3 className="text-lg font-semibold text-slate-900 mb-6">Downtime by Cause</h3>
+    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6">Downtime by Cause</h3>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

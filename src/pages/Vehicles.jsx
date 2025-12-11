@@ -100,8 +100,8 @@ export default function Vehicles() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Vehicles</h1>
-          <p className="text-slate-500 mt-1">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Vehicles</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
             {filteredVehicles.length} of {vehicles.length} vehicles
           </p>
         </div>

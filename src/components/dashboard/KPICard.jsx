@@ -12,13 +12,13 @@ export default function KPICard({ title, value, subtitle, icon: Icon, trend, tre
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-lg transition-all duration-300">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-lg transition-all duration-300">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">{value}</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
+          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-2">{value}</p>
           {subtitle && (
-            <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{subtitle}</p>
           )}
           {trend && (
             <div className={`flex items-center gap-1 mt-3 text-sm font-medium ${trendUp ? "text-emerald-600" : "text-rose-600"}`}>

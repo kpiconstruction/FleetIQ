@@ -135,10 +135,10 @@ export default function VehicleDetail() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900">{vehicle.asset_code}</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{vehicle.asset_code}</h1>
             {getStatusBadge(vehicle.status)}
           </div>
-          <p className="text-slate-500">{vehicle.rego} • {vehicle.asset_type}</p>
+          <p className="text-slate-500 dark:text-slate-400">{vehicle.rego} • {vehicle.asset_type}</p>
         </div>
         <Link to={createPageUrl(`VehicleForm?id=${vehicle.id}`)}>
           <Button variant="outline">
@@ -151,8 +151,8 @@ export default function VehicleDetail() {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Last Prestart */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-2 text-slate-500 mb-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-2">
             <ClipboardCheck className="w-4 h-4" />
             <span className="text-sm font-medium">Last Prestart</span>
           </div>
@@ -174,8 +174,8 @@ export default function VehicleDetail() {
         </div>
 
         {/* Service */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-2 text-slate-500 mb-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-2">
             <Wrench className="w-4 h-4" />
             <span className="text-sm font-medium">Service</span>
           </div>
@@ -190,8 +190,8 @@ export default function VehicleDetail() {
         </div>
 
         {/* 30 Day Stats */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-2 text-slate-500 mb-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-2">
             <Activity className="w-4 h-4" />
             <span className="text-sm font-medium">30 Day Activity</span>
           </div>
@@ -200,8 +200,8 @@ export default function VehicleDetail() {
         </div>
 
         {/* Fuel */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-2 text-slate-500 mb-2">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-2">
             <Fuel className="w-4 h-4" />
             <span className="text-sm font-medium">30 Day Fuel</span>
           </div>
@@ -212,29 +212,29 @@ export default function VehicleDetail() {
 
       {/* Ownership Card (for hire vehicles) */}
       {vehicle.ownership_type !== "Owned" && (
-        <div className="bg-gradient-to-r from-violet-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-violet-100">
+        <div className="bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 rounded-2xl p-6 mb-8 border border-violet-100 dark:border-violet-900">
           <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-5 h-5 text-violet-600" />
-            <h3 className="font-semibold text-violet-900">Hire Details</h3>
+            <Building2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            <h3 className="font-semibold text-violet-900 dark:text-violet-200">Hire Details</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-violet-600">Type</p>
-              <p className="font-medium text-violet-900">{vehicle.ownership_type === "ContractHire" ? "Contract Hire" : "Day Hire"}</p>
+              <p className="text-sm text-violet-600 dark:text-violet-400">Type</p>
+              <p className="font-medium text-violet-900 dark:text-violet-200">{vehicle.ownership_type === "ContractHire" ? "Contract Hire" : "Day Hire"}</p>
             </div>
             <div>
-              <p className="text-sm text-violet-600">Provider</p>
-              <p className="font-medium text-violet-900">{hireProvider?.name || "-"}</p>
+              <p className="text-sm text-violet-600 dark:text-violet-400">Provider</p>
+              <p className="font-medium text-violet-900 dark:text-violet-200">{hireProvider?.name || "-"}</p>
             </div>
             {contract && (
               <>
                 <div>
-                  <p className="text-sm text-violet-600">Contract</p>
-                  <p className="font-medium text-violet-900">{contract.contract_name}</p>
+                  <p className="text-sm text-violet-600 dark:text-violet-400">Contract</p>
+                  <p className="font-medium text-violet-900 dark:text-violet-200">{contract.contract_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-violet-600">Rate</p>
-                  <p className="font-medium text-violet-900">${contract.rate_amount} {contract.rate_basis?.replace("per_", "/")}</p>
+                  <p className="text-sm text-violet-600 dark:text-violet-400">Rate</p>
+                  <p className="font-medium text-violet-900 dark:text-violet-200">${contract.rate_amount} {contract.rate_basis?.replace("per_", "/")}</p>
                 </div>
               </>
             )}
@@ -254,7 +254,7 @@ export default function VehicleDetail() {
 
         {/* Prestarts Tab */}
         <TabsContent value="prestarts">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
@@ -267,7 +267,7 @@ export default function VehicleDetail() {
               </TableHeader>
               <TableBody>
                 {prestarts.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-slate-50 cursor-pointer">
+                  <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b dark:border-slate-700">
                     <TableCell>{format(new Date(p.prestart_datetime), "d MMM yyyy HH:mm")}</TableCell>
                     <TableCell>{p.operator_name}</TableCell>
                     <TableCell className="text-slate-600">{p.client_name || "-"}</TableCell>
@@ -281,7 +281,7 @@ export default function VehicleDetail() {
                 ))}
                 {prestarts.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">No prestart records</TableCell>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">No prestart records</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -296,7 +296,7 @@ export default function VehicleDetail() {
               <Button className="bg-indigo-600 hover:bg-indigo-700">Add Service Record</Button>
             </Link>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
@@ -310,7 +310,7 @@ export default function VehicleDetail() {
               </TableHeader>
               <TableBody>
                 {serviceRecords.map((s) => (
-                  <TableRow key={s.id} className="hover:bg-slate-50">
+                  <TableRow key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell>{format(new Date(s.service_date), "d MMM yyyy")}</TableCell>
                     <TableCell>{s.service_type}</TableCell>
                     <TableCell>{s.workshop_name || "-"}</TableCell>
@@ -321,7 +321,7 @@ export default function VehicleDetail() {
                 ))}
                 {serviceRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">No service records</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">No service records</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -336,7 +336,7 @@ export default function VehicleDetail() {
               <Button className="bg-indigo-600 hover:bg-indigo-700">Log Downtime Event</Button>
             </Link>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
@@ -350,7 +350,7 @@ export default function VehicleDetail() {
               </TableHeader>
               <TableBody>
                 {downtimeEvents.map((d) => (
-                  <TableRow key={d.id} className="hover:bg-slate-50">
+                  <TableRow key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell>{format(new Date(d.start_datetime), "d MMM HH:mm")}</TableCell>
                     <TableCell>{d.end_datetime ? format(new Date(d.end_datetime), "d MMM HH:mm") : "Ongoing"}</TableCell>
                     <TableCell>{d.downtime_hours || "-"}</TableCell>
@@ -367,7 +367,7 @@ export default function VehicleDetail() {
                 ))}
                 {downtimeEvents.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">No downtime events</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">No downtime events</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -377,7 +377,7 @@ export default function VehicleDetail() {
 
         {/* Usage Tab */}
         <TabsContent value="usage">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
@@ -390,7 +390,7 @@ export default function VehicleDetail() {
               </TableHeader>
               <TableBody>
                 {usageRecords.map((u) => (
-                  <TableRow key={u.id} className="hover:bg-slate-50">
+                  <TableRow key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell>{format(new Date(u.usage_date), "d MMM yyyy")}</TableCell>
                     <TableCell>{u.total_hours || "-"}</TableCell>
                     <TableCell>{u.km_travelled || "-"}</TableCell>
@@ -400,7 +400,7 @@ export default function VehicleDetail() {
                 ))}
                 {usageRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">No usage records</TableCell>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">No usage records</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -410,7 +410,7 @@ export default function VehicleDetail() {
 
         {/* Fuel Tab */}
         <TabsContent value="fuel">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
@@ -423,7 +423,7 @@ export default function VehicleDetail() {
               </TableHeader>
               <TableBody>
                 {fuelTransactions.map((f) => (
-                  <TableRow key={f.id} className="hover:bg-slate-50">
+                  <TableRow key={f.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell>{format(new Date(f.transaction_datetime), "d MMM yyyy HH:mm")}</TableCell>
                     <TableCell>{f.litres?.toFixed(1)}L</TableCell>
                     <TableCell>${f.total_cost?.toFixed(2)}</TableCell>
@@ -433,7 +433,7 @@ export default function VehicleDetail() {
                 ))}
                 {fuelTransactions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">No fuel transactions</TableCell>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">No fuel transactions</TableCell>
                   </TableRow>
                 )}
               </TableBody>

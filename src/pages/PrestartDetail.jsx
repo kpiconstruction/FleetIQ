@@ -112,7 +112,7 @@ export default function PrestartDetail() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900">Prestart Check</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Prestart Check</h1>
             <Badge
               variant="outline"
               className={
@@ -129,7 +129,7 @@ export default function PrestartDetail() {
               {prestart.overall_result}
             </Badge>
           </div>
-          <p className="text-slate-500">
+          <p className="text-slate-500 dark:text-slate-400">
             {format(new Date(prestart.prestart_datetime), "d MMMM yyyy, HH:mm")}
           </p>
         </div>
@@ -137,14 +137,14 @@ export default function PrestartDetail() {
 
       {/* Info Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2 text-slate-500 mb-1">
             <User className="w-4 h-4" />
             <span className="text-sm">Operator</span>
           </div>
           <p className="font-semibold">{prestart.operator_name}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2 text-slate-500 mb-1">
             <span className="text-sm">Vehicle</span>
           </div>
@@ -156,7 +156,7 @@ export default function PrestartDetail() {
           </Link>
         </div>
         {prestart.odometer_km && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
             <div className="flex items-center gap-2 text-slate-500 mb-1">
               <Gauge className="w-4 h-4" />
               <span className="text-sm">Odometer</span>
@@ -165,7 +165,7 @@ export default function PrestartDetail() {
           </div>
         )}
         {prestart.client_name && (
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
             <div className="flex items-center gap-2 text-slate-500 mb-1">
               <span className="text-sm">Client/Project</span>
             </div>

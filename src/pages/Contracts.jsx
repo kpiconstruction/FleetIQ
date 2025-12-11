@@ -166,8 +166,8 @@ export default function Contracts() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Hire Contracts</h1>
-          <p className="text-slate-500 mt-1">{contracts.length} contracts</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Hire Contracts</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{contracts.length} contracts</p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
@@ -334,10 +334,10 @@ export default function Contracts() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50">
+              <TableRow className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-700">
                 <TableHead>Contract</TableHead>
                 <TableHead>Provider</TableHead>
                 <TableHead>Vehicle</TableHead>
@@ -353,7 +353,7 @@ export default function Contracts() {
                 const provider = providerMap[contract.hire_provider_id];
                 const vehicle = vehicleMap[contract.vehicle_id];
                 return (
-                  <TableRow key={contract.id} className="hover:bg-slate-50">
+                  <TableRow key={contract.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell>
                       <div>
                         <p className="font-medium">{contract.contract_name}</p>
@@ -384,8 +384,8 @@ export default function Contracts() {
           </Table>
           {contracts.length === 0 && (
             <div className="p-12 text-center">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">No contracts added yet</p>
+              <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-500 dark:text-slate-400">No contracts added yet</p>
             </div>
           )}
         </div>

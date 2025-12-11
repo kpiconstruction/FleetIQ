@@ -62,10 +62,10 @@ export default function VehicleTable({ vehicles, hireProviders }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50">
+          <TableRow className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-700">
             <TableHead className="font-semibold">Asset Code</TableHead>
             <TableHead className="font-semibold">Rego</TableHead>
             <TableHead className="font-semibold">Type</TableHead>
@@ -84,7 +84,7 @@ export default function VehicleTable({ vehicles, hireProviders }) {
           {vehicles.map((vehicle) => (
             <TableRow
               key={vehicle.id}
-              className="cursor-pointer hover:bg-slate-50 transition-colors group"
+              className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group border-b dark:border-slate-700"
             >
               <TableCell className="font-medium">{vehicle.asset_code}</TableCell>
               <TableCell className="text-slate-600">{vehicle.rego || "-"}</TableCell>
@@ -135,7 +135,7 @@ export default function VehicleTable({ vehicles, hireProviders }) {
       
       {vehicles.length === 0 && (
         <div className="p-12 text-center">
-          <p className="text-slate-500">No vehicles found matching your filters</p>
+          <p className="text-slate-500 dark:text-slate-400">No vehicles found matching your filters</p>
         </div>
       )}
     </div>

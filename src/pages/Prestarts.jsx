@@ -102,8 +102,8 @@ export default function Prestarts() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Prestarts</h1>
-          <p className="text-slate-500 mt-1">{filteredPrestarts.length} prestart records</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Prestarts</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{filteredPrestarts.length} prestart records</p>
         </div>
         <Button variant="outline" onClick={exportToCSV}>
           <Download className="w-4 h-4 mr-2" />
@@ -112,7 +112,7 @@ export default function Prestarts() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 mb-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -170,10 +170,10 @@ export default function Prestarts() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50">
+              <TableRow className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-700">
                 <TableHead>Date/Time</TableHead>
                 <TableHead>Asset</TableHead>
                 <TableHead>Type</TableHead>
@@ -188,7 +188,7 @@ export default function Prestarts() {
               {filteredPrestarts.map((p) => {
                 const vehicle = vehicleMap[p.vehicle_id];
                 return (
-                  <TableRow key={p.id} className="hover:bg-slate-50">
+                  <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell className="font-medium">
                       {format(new Date(p.prestart_datetime), "d MMM yyyy HH:mm")}
                     </TableCell>
@@ -248,7 +248,7 @@ export default function Prestarts() {
           </Table>
           {filteredPrestarts.length === 0 && (
             <div className="p-12 text-center">
-              <p className="text-slate-500">No prestart records found</p>
+              <p className="text-slate-500 dark:text-slate-400">No prestart records found</p>
             </div>
           )}
         </div>

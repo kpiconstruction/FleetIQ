@@ -134,8 +134,8 @@ export default function Downtime() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Downtime Events</h1>
-          <p className="text-slate-500 mt-1">{filteredEvents.length} events</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Downtime Events</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{filteredEvents.length} events</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={exportToCSV}>
@@ -153,21 +153,21 @@ export default function Downtime() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Events</p>
-          <p className="text-2xl font-bold text-slate-900">{filteredEvents.length}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Events</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{filteredEvents.length}</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Hours</p>
-          <p className="text-2xl font-bold text-slate-900">{Math.round(totalHours)}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Hours</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{Math.round(totalHours)}</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Stand-Down Expected</p>
-          <p className="text-2xl font-bold text-violet-600">{standDownExpected}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Stand-Down Expected</p>
+          <p className="text-2xl font-bold text-violet-600 dark:text-violet-400">{standDownExpected}</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Stand-Down Confirmed</p>
-          <p className="text-2xl font-bold text-emerald-600">{standDownConfirmed}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Stand-Down Confirmed</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{standDownConfirmed}</p>
         </div>
       </div>
 

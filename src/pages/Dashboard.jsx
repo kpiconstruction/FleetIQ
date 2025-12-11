@@ -180,8 +180,8 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Fleet Dashboard</h1>
-          <p className="text-slate-500 mt-1">National overview of fleet operations</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Fleet Dashboard</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">National overview of fleet operations</p>
         </div>
         <Button
           variant="outline"
@@ -195,7 +195,7 @@ export default function Dashboard() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-8">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <StateFilter selected={stateFilter} onChange={setStateFilter} />
           

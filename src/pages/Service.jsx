@@ -120,8 +120,8 @@ export default function Service() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Service Records</h1>
-          <p className="text-slate-500 mt-1">{filteredRecords.length} records</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Service Records</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{filteredRecords.length} records</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={exportToCSV}>
@@ -139,22 +139,22 @@ export default function Service() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Records</p>
-          <p className="text-2xl font-bold text-slate-900">{filteredRecords.length}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Records</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{filteredRecords.length}</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Cost (ex GST)</p>
-          <p className="text-2xl font-bold text-slate-900">${totalCost.toLocaleString()}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Cost (ex GST)</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">${totalCost.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <p className="text-sm text-slate-500">Total Downtime</p>
-          <p className="text-2xl font-bold text-slate-900">{Math.round(totalDowntime)} hours</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total Downtime</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{Math.round(totalDowntime)} hours</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 mb-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -215,10 +215,10 @@ export default function Service() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50">
+              <TableRow className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-700">
                 <TableHead>Date</TableHead>
                 <TableHead>Asset</TableHead>
                 <TableHead>Type</TableHead>
@@ -232,7 +232,7 @@ export default function Service() {
               {filteredRecords.map((s) => {
                 const vehicle = vehicleMap[s.vehicle_id];
                 return (
-                  <TableRow key={s.id} className="hover:bg-slate-50">
+                  <TableRow key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell className="font-medium">
                       {format(new Date(s.service_date), "d MMM yyyy")}
                     </TableCell>

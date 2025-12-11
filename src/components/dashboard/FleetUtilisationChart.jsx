@@ -12,8 +12,8 @@ import {
 
 export default function FleetUtilisationChart({ data }) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-      <h3 className="text-lg font-semibold text-slate-900 mb-6">Fleet Utilisation</h3>
+    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6">Fleet Utilisation</h3>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -27,25 +27,28 @@ export default function FleetUtilisationChart({ data }) {
                 <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
             <XAxis 
               dataKey="week" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#64748b', fontSize: 12 }}
+              tick={{ fill: 'currentColor', fontSize: 12 }}
+              className="text-slate-600 dark:text-slate-400"
             />
             <YAxis 
               yAxisId="left"
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#64748b', fontSize: 12 }}
+              tick={{ fill: 'currentColor', fontSize: 12 }}
+              className="text-slate-600 dark:text-slate-400"
             />
             <YAxis 
               yAxisId="right"
               orientation="right"
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#64748b', fontSize: 12 }}
+              tick={{ fill: 'currentColor', fontSize: 12 }}
+              className="text-slate-600 dark:text-slate-400"
             />
             <Tooltip
               contentStyle={{

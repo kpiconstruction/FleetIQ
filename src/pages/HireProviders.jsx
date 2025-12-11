@@ -98,8 +98,8 @@ export default function HireProviders() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Hire Providers</h1>
-          <p className="text-slate-500 mt-1">{providers.length} providers</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Hire Providers</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{providers.length} providers</p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
@@ -208,7 +208,7 @@ export default function HireProviders() {
           {providers.map((provider) => (
             <div
               key={provider.id}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-lg transition-shadow"
+              className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -216,9 +216,9 @@ export default function HireProviders() {
                     <Building2 className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-900">{provider.name}</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100">{provider.name}</h3>
                     {provider.contact_name && (
-                      <p className="text-sm text-slate-500">{provider.contact_name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{provider.contact_name}</p>
                     )}
                   </div>
                 </div>
@@ -236,13 +236,13 @@ export default function HireProviders() {
 
               <div className="space-y-2 mb-4">
                 {provider.contact_phone && (
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                     <Phone className="w-4 h-4 text-slate-400" />
                     {provider.contact_phone}
                   </div>
                 )}
                 {provider.contact_email && (
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                     <Mail className="w-4 h-4 text-slate-400" />
                     {provider.contact_email}
                   </div>
@@ -264,9 +264,9 @@ export default function HireProviders() {
       )}
 
       {!isLoading && providers.length === 0 && (
-        <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-100">
-          <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500">No hire providers added yet</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-slate-100 dark:border-slate-700">
+          <Building2 className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-500 dark:text-slate-400">No hire providers added yet</p>
         </div>
       )}
     </div>

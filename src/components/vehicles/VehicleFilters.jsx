@@ -32,7 +32,7 @@ export default function VehicleFilters({ filters, setFilters, hireProviders }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
