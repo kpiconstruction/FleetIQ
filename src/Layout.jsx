@@ -73,7 +73,7 @@ function LayoutContent({ children, currentPageName }) {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
               <Truck className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg text-slate-900 dark:text-slate-100">KPI Fleet Hub</span>
+            <span className="font-bold text-lg text-slate-900 dark:text-slate-100">KPI - Fleet IQ</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -109,7 +109,7 @@ function LayoutContent({ children, currentPageName }) {
                 <Truck className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-xl text-slate-900 dark:text-slate-100">KPI Fleet Hub</h1>
+                <h1 className="font-bold text-xl text-slate-900 dark:text-slate-100">KPI - Fleet IQ</h1>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Fleet Management System</p>
               </div>
             </div>
