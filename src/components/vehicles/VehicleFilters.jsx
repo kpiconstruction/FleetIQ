@@ -61,8 +61,6 @@ export default function VehicleFilters({ filters, setFilters, hireProviders }) {
               <SelectItem value="VIC">VIC</SelectItem>
               <SelectItem value="NSW">NSW</SelectItem>
               <SelectItem value="QLD">QLD</SelectItem>
-              <SelectItem value="SA">SA</SelectItem>
-              <SelectItem value="WA">WA</SelectItem>
             </SelectContent>
           </Select>
 
