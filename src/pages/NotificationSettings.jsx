@@ -236,44 +236,45 @@ export default function NotificationSettings() {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Suggested Keys */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Suggested Configuration Keys</CardTitle>
-            <CardDescription>Common notification recipient keys used by Fleet IQ</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                <p className="font-mono text-indigo-600">FleetManagerEmail</p>
-                <p className="text-slate-600 text-xs">Fleet Manager for maintenance & HVNL alerts</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                <p className="font-mono text-indigo-600">HSEManagerEmail</p>
-                <p className="text-slate-600 text-xs">HSE Manager for HVNL-critical alerts</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                <p className="font-mono text-indigo-600">StateOpsEmail_VIC</p>
-                <p className="text-slate-600 text-xs">VIC State Operations Manager</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                <p className="font-mono text-indigo-600">StateOpsEmail_NSW</p>
-                <p className="text-slate-600 text-xs">NSW State Operations Manager</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                <p className="font-mono text-indigo-600">StateOpsEmail_QLD</p>
-                <p className="text-slate-600 text-xs">QLD State Operations Manager</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
-                <p className="font-mono text-indigo-600">StateOpsEmail_TAS</p>
-                <p className="text-slate-600 text-xs">TAS State Operations Manager</p>
-              </div>
+      {/* Suggested Keys */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Suggested Configuration Keys</CardTitle>
+          <CardDescription>Common notification recipient keys used by Fleet IQ</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <p className="font-mono text-indigo-600">FleetManagerEmail</p>
+              <p className="text-slate-600 text-xs">Fleet Manager for maintenance & HVNL alerts</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <p className="font-mono text-indigo-600">HSEManagerEmail</p>
+              <p className="text-slate-600 text-xs">HSE Manager for HVNL-critical alerts</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <p className="font-mono text-indigo-600">StateOpsEmail_VIC</p>
+              <p className="text-slate-600 text-xs">VIC State Operations Manager</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <p className="font-mono text-indigo-600">StateOpsEmail_NSW</p>
+              <p className="text-slate-600 text-xs">NSW State Operations Manager</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <p className="font-mono text-indigo-600">StateOpsEmail_QLD</p>
+              <p className="text-slate-600 text-xs">QLD State Operations Manager</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <p className="font-mono text-indigo-600">StateOpsEmail_TAS</p>
+              <p className="text-slate-600 text-xs">TAS State Operations Manager</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add Config Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
