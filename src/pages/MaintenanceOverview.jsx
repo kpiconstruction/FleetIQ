@@ -24,6 +24,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "../utils";
+import {
   LineChart,
   Line,
   BarChart,
@@ -39,6 +49,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import HvnlRiskLeaderboard from "../components/maintenance/HvnlRiskLeaderboard";
+
+const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"];
 
 export default function MaintenanceOverview() {
   const [filters, setFilters] = useState({
