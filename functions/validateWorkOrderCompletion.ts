@@ -83,10 +83,18 @@ Deno.serve(async (req) => {
         cost_chargeable_to: finalCostChargeableTo
       };
       
-      const correctedServiceRecord = applyCostRulesForServiceRecord({
-        vehicle,
-        workOrder,
-        serviceRecord: draftServiceRecord
+      // Fetch recent services for anomaly detection
+      const recentServices = await base44.asServiceRole.entities.ServiceRecord.filter(
+        { vehicle_id: vehicle.id },
+        '-service_date',
+        20
+      );
+      
+      const correctedServiceRecord = applyMaintenanceCostRules({
+        serviceRecord: draftServiceRecord,
+        vehicle: vehicle,
+        workOrder: workOrder,
+        recentServices: recentServices
       });
       
       return Response.json({ 

@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { hasPermission } from './checkPermissions.js';
-import { applyCostRulesForServiceRecord } from './maintenanceCostRules.js';
+import { applyMaintenanceCostRules } from './services/maintenanceCostRules.js';
 
 Deno.serve(async (req) => {
   try {
@@ -261,10 +261,18 @@ Deno.serve(async (req) => {
         // Apply cost rules
         const vehicle = vehicleMap[row.mapped_vehicle_id];
         if (vehicle) {
-          serviceRecord = applyCostRulesForServiceRecord({
-            vehicle,
+          // Fetch recent services for anomaly detection
+          const recentServices = await base44.asServiceRole.entities.ServiceRecord.filter(
+            { vehicle_id: row.mapped_vehicle_id },
+            '-service_date',
+            20
+          );
+          
+          serviceRecord = applyMaintenanceCostRules({
+            serviceRecord: serviceRecord,
+            vehicle: vehicle,
             workOrder: null,
-            serviceRecord
+            recentServices: recentServices
           });
         }
 
