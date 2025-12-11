@@ -4,6 +4,8 @@ import { hasPermission } from './checkPermissions.js';
 /**
  * Export Vehicles for Trae Migration
  * Read-only API with paging and filtering
+ * 
+ * READY FOR TRAE BACKEND – v1 export contract. Do not change field names without versioning.
  */
 Deno.serve(async (req) => {
   try {

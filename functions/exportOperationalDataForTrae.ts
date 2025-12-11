@@ -3,7 +3,9 @@ import { hasPermission } from './checkPermissions.js';
 
 /**
  * Export Operational Data for Trae Migration
- * Includes: Downtime, Usage, Prestarts, Defects, Incidents
+ * Includes: Downtime, Usage, Prestarts, Defects, Incidents, Fuel Transactions
+ * 
+ * READY FOR TRAE BACKEND – v1 export contract. Do not change field names without versioning.
  */
 Deno.serve(async (req) => {
   try {
@@ -24,7 +26,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { 
-      entityType, // "downtime" | "usage" | "prestarts" | "defects" | "incidents"
+      entityType, // "downtime" | "usage" | "prestarts" | "defects" | "incidents" | "fuelTransactions"
       offset = 0, 
       limit = 100,
       dateRangeStart = null,
@@ -211,9 +213,46 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case 'fuelTransactions': {
+        const query = {};
+        if (vehicleId) query.vehicle_id = vehicleId;
+        let transactions = await base44.asServiceRole.entities.FuelTransaction.filter(query, '-transaction_datetime', 10000);
+        
+        if (dateRangeStart || dateRangeEnd) {
+          transactions = transactions.filter(t => {
+            const transactionDate = new Date(t.transaction_datetime);
+            if (dateRangeStart && transactionDate < new Date(dateRangeStart)) return false;
+            if (dateRangeEnd && transactionDate > new Date(dateRangeEnd)) return false;
+            return true;
+          });
+        }
+        
+        total = transactions.length;
+        data = transactions.slice(offset, offset + limit).map(t => ({
+          id: t.id,
+          vehicle_id: t.vehicle_id,
+          transaction_datetime: t.transaction_datetime,
+          litres: t.litres,
+          total_cost: t.total_cost,
+          unit_price: t.unit_price,
+          site_location: t.site_location,
+          fuel_type: t.fuel_type,
+          card_number: t.card_number,
+          supplier_name: t.supplier_name,
+          source: t.source,
+          source_reference: t.source_reference,
+          ownership_type_snapshot: t.ownership_type_snapshot,
+          hire_provider_id_snapshot: t.hire_provider_id_snapshot,
+          odometer_at_fill: t.odometer_at_fill,
+          project_code: t.project_code,
+          created_date: t.created_date,
+        }));
+        break;
+      }
+
       default:
         return Response.json({
-          error: 'Invalid entityType. Must be: downtime, usage, prestarts, defects, or incidents',
+          error: 'Invalid entityType. Must be: downtime, usage, prestarts, defects, incidents, or fuelTransactions',
         }, { status: 400 });
     }
 

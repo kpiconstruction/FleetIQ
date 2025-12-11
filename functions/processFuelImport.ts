@@ -107,90 +107,127 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Batch already committed' }, { status: 400 });
       }
 
-      // Fetch ready rows
-      const readyRows = await base44.asServiceRole.entities.ImportedFuelRow.filter({
+      // Fetch eligible rows (only Ready status)
+      const allRowsForCommit = await base44.asServiceRole.entities.ImportedFuelRow.filter({
         fuel_import_batch_id: batch_id,
-        resolution_status: 'Ready',
       });
+      
+      const readyRows = allRowsForCommit.filter(r => r.resolution_status === 'Ready');
 
       if (readyRows.length === 0) {
         return Response.json({ 
-          error: 'No rows in Ready status to commit',
-          ready_count: 0,
+          success: false,
+          error: 'Nothing to commit: there are no rows with status Ready.',
         }, { status: 400 });
       }
 
-      // Check for unresolved critical rows
+      // Pre-commit validation: reject if any unresolved rows exist
       const allRows = await base44.asServiceRole.entities.ImportedFuelRow.filter({
         fuel_import_batch_id: batch_id,
       });
-      const unresolvedCount = allRows.filter(r => 
-        r.resolution_status === 'VehicleNotFound' || 
-        r.resolution_status === 'InvalidData'
-      ).length;
+      
+      const unresolvedRows = allRows.filter(r => 
+        ['Unmapped', 'VehicleNotFound', 'InvalidData', 'Duplicate'].includes(r.resolution_status)
+      );
 
-      if (unresolvedCount > 0) {
+      if (unresolvedRows.length > 0) {
+        const statusCounts = {
+          Unmapped: unresolvedRows.filter(r => r.resolution_status === 'Unmapped').length,
+          VehicleNotFound: unresolvedRows.filter(r => r.resolution_status === 'VehicleNotFound').length,
+          InvalidData: unresolvedRows.filter(r => r.resolution_status === 'InvalidData').length,
+          Duplicate: unresolvedRows.filter(r => r.resolution_status === 'Duplicate').length,
+        };
+        
+        const statusSummary = Object.entries(statusCounts)
+          .filter(([_, count]) => count > 0)
+          .map(([status, count]) => `${count} ${status}`)
+          .join(', ');
+
         return Response.json({
-          error: `Cannot commit: ${unresolvedCount} rows still have VehicleNotFound or InvalidData status`,
-          unresolved_count: unresolvedCount,
+          success: false,
+          error: `Cannot commit: ${unresolvedRows.length} rows are unresolved (${statusSummary}). Only Ready or Ignored rows may remain.`,
+          unresolvedCounts: statusCounts,
         }, { status: 400 });
       }
 
-      // Commit all ready rows
+      // Commit all ready rows with error handling
       let committed = 0;
+      let failed = 0;
       let totalLitres = 0;
       let totalCost = 0;
+      const failedRows = [];
 
       for (const row of readyRows) {
-        const fuelData = {
-          vehicle_id: row.mapped_vehicle_id,
-          transaction_datetime: row.mapped_transaction_datetime,
-          card_number: row.mapped_card_number,
-          rego: row.mapped_rego,
-          driver_name: row.mapped_driver_name,
-          litres: row.mapped_litres,
-          total_cost: row.mapped_total_cost_ex_gst,
-          unit_price: row.mapped_price_per_litre,
-          fuel_type: row.mapped_fuel_type,
-          site_location: row.mapped_site_location,
-          supplier_name: row.mapped_provider_name,
-          source: 'FuelCardCSV',
-          source_reference: row.external_reference || batch.file_name,
-        };
+        try {
+          const fuelData = {
+            vehicle_id: row.mapped_vehicle_id,
+            transaction_datetime: row.mapped_transaction_datetime,
+            card_number: row.mapped_card_number,
+            driver_name: row.mapped_driver_name,
+            litres: row.mapped_litres,
+            total_cost: row.mapped_total_cost_ex_gst,
+            unit_price: row.mapped_price_per_litre,
+            fuel_type: row.mapped_fuel_type,
+            site_location: row.mapped_site_location,
+            supplier_name: row.mapped_provider_name,
+            source: 'FuelCardCSV',
+            source_reference: row.external_reference || batch.file_name,
+          };
 
-        await base44.asServiceRole.entities.FuelTransaction.create(fuelData);
-        
-        await base44.asServiceRole.entities.ImportedFuelRow.update(row.id, {
-          resolution_status: 'Committed',
-        });
+          await base44.asServiceRole.entities.FuelTransaction.create(fuelData);
+          
+          await base44.asServiceRole.entities.ImportedFuelRow.update(row.id, {
+            resolution_status: 'Committed',
+          });
 
-        committed++;
-        totalLitres += row.mapped_litres || 0;
-        totalCost += row.mapped_total_cost_ex_gst || 0;
+          committed++;
+          totalLitres += row.mapped_litres || 0;
+          totalCost += row.mapped_total_cost_ex_gst || 0;
+        } catch (rowError) {
+          console.error(`Failed to create fuel transaction for row ${row.id}:`, rowError);
+          failed++;
+          failedRows.push({
+            rego: row.mapped_rego,
+            error: rowError.message
+          });
+          
+          // Mark row as invalid with error details
+          await base44.asServiceRole.entities.ImportedFuelRow.update(row.id, {
+            resolution_status: 'InvalidData',
+            resolution_notes: `Commit failed: ${rowError.message}`
+          });
+        }
       }
 
-      // Update batch status
-      await base44.asServiceRole.entities.FuelImportBatch.update(batch_id, {
-        status: 'Committed',
-        committed_by_user_id: user.id,
-        committed_at: new Date().toISOString(),
-        summary_json: {
-          total_rows: allRows.length,
-          committed: committed,
-          total_litres: Math.round(totalLitres),
-          total_cost: Math.round(totalCost),
-          ignored: allRows.filter(r => r.resolution_status === 'Ignored').length,
-        },
-      });
+      // Update batch status (only if at least one row was successful)
+      if (committed > 0) {
+        await base44.asServiceRole.entities.FuelImportBatch.update(batch_id, {
+          status: 'Committed',
+          committed_by_user_id: user.id,
+          committed_at: new Date().toISOString(),
+          summary_json: {
+            total_rows: allRowsForCommit.length,
+            committed: committed,
+            failed: failed,
+            total_litres: Math.round(totalLitres),
+            total_cost: Math.round(totalCost),
+            ignored: allRowsForCommit.filter(r => r.resolution_status === 'Ignored').length,
+            committedAt: new Date().toISOString(),
+          },
+        });
+      }
 
-      console.log(`[FuelImport] Committed batch ${batch_id}: ${committed} transactions, ${Math.round(totalLitres)}L, $${Math.round(totalCost)}`);
+      console.log(`[FuelImport] Committed batch ${batch_id}: ${committed} transactions, ${failed} failed, ${Math.round(totalLitres)}L, $${Math.round(totalCost)}`);
 
       return Response.json({
         success: true,
         committed,
+        failed,
+        partialCommit: failed > 0,
         total_litres: Math.round(totalLitres),
         total_cost: Math.round(totalCost),
         batch_id,
+        failureDetails: failed > 0 ? failedRows : undefined,
       });
     }
 

@@ -1,3 +1,13 @@
+/**
+ * DEPRECATED: Fuel Receipt OCR Upload
+ * 
+ * This function is DEPRECATED and should not be used in production.
+ * KPI Fleet IQ uses CSV/Excel imports from fleet card providers via /FuelImport page.
+ * 
+ * This function remains for backward compatibility only and is not exposed in the UI.
+ * For fuel data ingestion, use processFuelImport with CSV/Excel files.
+ */
+
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 
 Deno.serve(async (req) => {

@@ -290,9 +290,9 @@ export default function FuelImport() {
       {currentStep === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: Upload Fuel Card File</CardTitle>
+            <CardTitle>Step 1: Upload Fleet Card File</CardTitle>
             <CardDescription>
-              Upload a CSV or Excel file exported from your fleet card provider
+              Upload a CSV or Excel file exported from your fleet card provider (e.g., BP, Shell, Caltex)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -572,6 +572,23 @@ export default function FuelImport() {
             </CardContent>
           </Card>
 
+          {/* Unresolved Warning Banner */}
+          {(statusCounts.VehicleNotFound > 0 || statusCounts.InvalidData > 0 || statusCounts.Duplicate > 0 || statusCounts.Unmapped > 0) && (
+            <Alert className="bg-amber-50 border-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <p className="font-semibold">Cannot commit: {statusCounts.VehicleNotFound + statusCounts.InvalidData + statusCounts.Duplicate + statusCounts.Unmapped} unresolved rows</p>
+                <p className="text-sm mt-1">
+                  {statusCounts.Unmapped > 0 && `${statusCounts.Unmapped} Unmapped • `}
+                  {statusCounts.VehicleNotFound > 0 && `${statusCounts.VehicleNotFound} Vehicle Not Found • `}
+                  {statusCounts.InvalidData > 0 && `${statusCounts.InvalidData} Invalid Data • `}
+                  {statusCounts.Duplicate > 0 && `${statusCounts.Duplicate} Duplicate`}
+                </p>
+                <p className="text-sm mt-2">Resolve or mark these rows as Ignored before committing.</p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Actions */}
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setCurrentStep(2)}>
@@ -579,7 +596,15 @@ export default function FuelImport() {
             </Button>
             <Button
               onClick={handleCommit}
-              disabled={committing || readyRows.length === 0 || !isFleetAdmin}
+              disabled={
+                committing || 
+                readyRows.length === 0 || 
+                !isFleetAdmin ||
+                statusCounts.VehicleNotFound > 0 ||
+                statusCounts.InvalidData > 0 ||
+                statusCounts.Duplicate > 0 ||
+                statusCounts.Unmapped > 0
+              }
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               {committing ? (
@@ -591,6 +616,11 @@ export default function FuelImport() {
                 <>
                   <Lock className="w-4 h-4 mr-2" />
                   Commit ({readyRows.length})
+                </>
+              ) : (statusCounts.VehicleNotFound > 0 || statusCounts.InvalidData > 0 || statusCounts.Duplicate > 0 || statusCounts.Unmapped > 0) ? (
+                <>
+                  <Lock className="w-4 h-4 mr-2" />
+                  Resolve Issues First
                 </>
               ) : (
                 <>

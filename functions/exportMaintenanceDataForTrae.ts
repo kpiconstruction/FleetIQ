@@ -4,6 +4,8 @@ import { hasPermission } from './checkPermissions.js';
 /**
  * Export Maintenance Data for Trae Migration
  * Includes: Templates, Plans, Work Orders, Service Records
+ * 
+ * READY FOR TRAE BACKEND – v1 export contract. Do not change field names without versioning.
  */
 Deno.serve(async (req) => {
   try {
