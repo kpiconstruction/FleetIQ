@@ -50,6 +50,7 @@ const safetyItems = [
 const adminItems = [
   { name: "Hire Providers", icon: Building2, page: "HireProviders" },
   { name: "Contracts", icon: FileText, page: "Contracts" },
+  { name: "Automation Control", icon: Settings, page: "AutomationControl", requireFleetAdmin: true },
   { name: "Notification Settings", icon: Settings, page: "NotificationSettings", requireFleetAdmin: true },
 ];
 
