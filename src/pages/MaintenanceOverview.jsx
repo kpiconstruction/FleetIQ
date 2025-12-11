@@ -934,6 +934,84 @@ export default function MaintenanceOverview() {
         </div>
       )}
 
+      {/* Cost Anomalies Table */}
+      {!costLoading && costData?.anomalies && costData.anomalies.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mt-6">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  Cost Anomalies Detected
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Service records flagged for review
+                </p>
+              </div>
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                {costData.anomalies.length} Flagged
+              </Badge>
+            </div>
+          </div>
+          <div className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 dark:bg-slate-900/50">
+                  <TableHead>Asset Code</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Cost</TableHead>
+                  <TableHead>Chargeable To</TableHead>
+                  <TableHead>Anomaly Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {costData.anomalies.slice(0, 15).map((anomaly) => (
+                  <TableRow
+                    key={anomaly.service_id}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700"
+                  >
+                    <TableCell className="font-medium">
+                      <Link
+                        to={createPageUrl(`VehicleDetail?id=${anomaly.vehicle_id}`)}
+                        className="text-indigo-600 hover:underline dark:text-indigo-400"
+                      >
+                        {anomaly.asset_code}
+                      </Link>
+                      <p className="text-xs text-slate-500">{anomaly.rego}</p>
+                    </TableCell>
+                    <TableCell>{format(new Date(anomaly.service_date), "d MMM yyyy")}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-slate-50">
+                        {anomaly.service_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-semibold text-indigo-600">
+                      ${anomaly.cost_ex_gst?.toLocaleString() || 0}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-slate-100">
+                        {anomaly.cost_chargeable_to}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-amber-700 dark:text-amber-400">
+                      {anomaly.anomaly_reason}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {costData.anomalies.length > 15 && (
+            <div className="p-4 border-t border-slate-100 dark:border-slate-700 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Showing top 15 of {costData.anomalies.length} anomalies
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* High-Cost Assets Table */}
       {!costLoading && costData?.assetAggregates && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mt-6">
