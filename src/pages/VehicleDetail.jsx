@@ -22,6 +22,7 @@ import {
   Plus,
   Lock,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { usePermissions } from "../components/auth/usePermissions";
 import WorkOrderForm from "../components/maintenance/WorkOrderForm";
 import WorkOrderCompletionDialog from "../components/maintenance/WorkOrderCompletionDialog";
@@ -548,18 +549,38 @@ export default function VehicleDetail() {
                           <TableCell>
                             {plan.next_due_odometer_km ? (
                               <div className="flex flex-col">
-                                <span className="font-medium">{plan.next_due_odometer_km.toLocaleString()} km</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{plan.next_due_odometer_km.toLocaleString()} km</span>
+                                  {plan.odometer_confidence && (
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        plan.odometer_confidence === "High"
+                                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs"
+                                          : plan.odometer_confidence === "Medium"
+                                          ? "bg-amber-50 text-amber-700 border-amber-200 text-xs"
+                                          : plan.odometer_confidence === "Low"
+                                          ? "bg-rose-50 text-rose-700 border-rose-200 text-xs"
+                                          : "bg-slate-100 text-slate-600 text-xs"
+                                      }
+                                      title={
+                                        plan.odometer_confidence === "Low"
+                                          ? "Manual odometer from prestart with low confidence – review before scheduling critical work"
+                                          : `Odometer confidence: ${plan.odometer_confidence}`
+                                      }
+                                    >
+                                      {plan.odometer_confidence === "High" ? "✓" :
+                                       plan.odometer_confidence === "Medium" ? "~" :
+                                       plan.odometer_confidence === "Low" ? "⚠" : "?"}
+                                    </Badge>
+                                  )}
+                                </div>
                                 {plan.current_odometer_km && (
                                   <span className="text-xs text-slate-500 dark:text-slate-400">
                                     Current: {plan.current_odometer_km.toLocaleString()} km
                                     {plan.odometer_source && (
                                       <span className="ml-1">
                                         ({plan.odometer_source === "Prestart" ? "Prestart" : plan.odometer_source})
-                                      </span>
-                                    )}
-                                    {plan.odometer_confidence === "Low" && (
-                                      <span className="ml-1 text-amber-600 dark:text-amber-400" title="Prestart odometer looks inconsistent – please verify reading">
-                                        ⚠️
                                       </span>
                                     )}
                                   </span>

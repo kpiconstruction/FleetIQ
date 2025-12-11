@@ -11,6 +11,7 @@ import {
   Filter,
   Calendar,
   Activity,
+  Gauge,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,6 +102,21 @@ export default function MaintenanceOverview() {
   const { data: hireProviders = [] } = useQuery({
     queryKey: ["hireProviders"],
     queryFn: () => base44.entities.HireProvider.list(),
+  });
+
+  const { data: odometerQuality, isLoading: odometerQualityLoading } = useQuery({
+    queryKey: [
+      "odometerQuality",
+      filters.state,
+      filters.functionClass,
+    ],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getOdometerDataQualityAggregates", {
+        stateFilter: filters.state,
+        functionClassFilter: filters.functionClass,
+      });
+      return response.data;
+    },
   });
 
   // Fetch compliance aggregates from backend
@@ -1129,6 +1145,148 @@ export default function MaintenanceOverview() {
             </div>
           )}
         </>
+      )}
+
+      {/* Odometer Data Quality */}
+      {!odometerQualityLoading && odometerQuality && (
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quality Overview Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <Gauge className="w-5 h-5 text-indigo-600" />
+              Odometer Data Quality
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-4">
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-1">High Confidence</p>
+                <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">
+                  {odometerQuality.summary.percentages.High}%
+                </p>
+                <p className="text-xs text-slate-500 mt-1">{odometerQuality.summary.by_confidence.High} vehicles</p>
+              </div>
+              <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4">
+                <p className="text-sm text-amber-600 dark:text-amber-400 mb-1">Medium Confidence</p>
+                <p className="text-3xl font-bold text-amber-700 dark:text-amber-400">
+                  {odometerQuality.summary.percentages.Medium}%
+                </p>
+                <p className="text-xs text-slate-500 mt-1">{odometerQuality.summary.by_confidence.Medium} vehicles</p>
+              </div>
+              <div className="bg-rose-50 dark:bg-rose-950/30 rounded-xl p-4">
+                <p className="text-sm text-rose-600 dark:text-rose-400 mb-1">Low Confidence</p>
+                <p className="text-3xl font-bold text-rose-700 dark:text-rose-400">
+                  {odometerQuality.summary.percentages.Low}%
+                </p>
+                <p className="text-xs text-slate-500 mt-1">{odometerQuality.summary.by_confidence.Low} vehicles</p>
+              </div>
+              <div className="bg-slate-100 dark:bg-slate-900/50 rounded-xl p-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Unknown</p>
+                <p className="text-3xl font-bold text-slate-700 dark:text-slate-400">
+                  {odometerQuality.summary.percentages.Unknown}%
+                </p>
+                <p className="text-xs text-slate-500 mt-1">{odometerQuality.summary.by_confidence.Unknown} vehicles</p>
+              </div>
+            </div>
+            {odometerQuality.summary.exceptions_count > 0 && (
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg">
+                <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                  ⚠️ {odometerQuality.summary.exceptions_count} vehicles with odometer exceptions
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Exceptions Table */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                Odometer Exceptions
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Vehicles with data quality issues
+              </p>
+            </div>
+            <div className="overflow-y-auto max-h-[400px]">
+              <Table>
+                <TableHeader className="sticky top-0 bg-slate-50 dark:bg-slate-900/50">
+                  <TableRow>
+                    <TableHead>Asset Code</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Depot</TableHead>
+                    <TableHead>Confidence</TableHead>
+                    <TableHead>Exception Type</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {odometerQuality.exceptions.slice(0, 20).map((ex) => (
+                    <TableRow key={ex.vehicle_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      <TableCell className="font-medium">
+                        <Link
+                          to={createPageUrl(`VehicleDetail?id=${ex.vehicle_id}`)}
+                          className="text-indigo-600 hover:underline dark:text-indigo-400"
+                        >
+                          {ex.asset_code}
+                        </Link>
+                        <p className="text-xs text-slate-500">{ex.rego}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-slate-100">
+                          {ex.state}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{ex.primary_depot || "-"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            ex.confidence === "Low"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : ex.confidence === "Medium"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : ex.confidence === "High"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-slate-100 text-slate-600"
+                          }
+                        >
+                          {ex.confidence}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {ex.exception_types.map(type => (
+                            <Badge
+                              key={type}
+                              variant="outline"
+                              className="text-xs bg-amber-50 text-amber-700 border-amber-200"
+                            >
+                              {type === "RepeatedLow" ? "3+ Low Readings" :
+                               type === "Backwards" ? "Backwards Movement" :
+                               type === "ExtremeJump" ? "2000+ km Jump" : type}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {odometerQuality.exceptions.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                        No odometer exceptions detected
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {odometerQuality.exceptions.length > 20 && (
+              <div className="p-4 border-t border-slate-100 dark:border-slate-700 text-center">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Showing top 20 of {odometerQuality.exceptions.length} exceptions
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* HVNL Risk Leaderboard */}

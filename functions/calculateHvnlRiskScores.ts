@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { getNotificationEmail } from './getNotificationEmail.js';
+import { getBestOdometerSnapshot } from './services/odometerSnapshot.js';
 
 Deno.serve(async (req) => {
   try {
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
 
     const riskScores = [];
 
-    hvnlVehicles.forEach(vehicle => {
+    for (const vehicle of hvnlVehicles) {
       // Check if vehicle has any HVNL-relevant maintenance plans
       const vehicleHvnlPlans = maintenancePlans.filter(plan => {
         if (plan.vehicle_id !== vehicle.id) return false;
@@ -47,14 +48,18 @@ Deno.serve(async (req) => {
 
       let riskScore = 0;
 
+      // Get best odometer snapshot for this vehicle
+      const odometerSnapshot = await getBestOdometerSnapshot(base44, vehicle.id);
+      const currentOdo = odometerSnapshot.odometer_km || vehicle.current_odometer_km;
+
       // 1. Overdue HVNL-critical MaintenancePlans
       const overduePlans = vehicleHvnlPlans.filter(plan => {
         if (plan.next_due_date) {
           const dueDate = new Date(plan.next_due_date);
           if (dueDate < now) return true;
         }
-        if (plan.next_due_odometer_km && vehicle.current_odometer_km) {
-          if (vehicle.current_odometer_km >= plan.next_due_odometer_km) return true;
+        if (plan.next_due_odometer_km && currentOdo) {
+          if (currentOdo >= plan.next_due_odometer_km) return true;
         }
         return false;
       });
@@ -136,7 +141,7 @@ Deno.serve(async (req) => {
         recent_corrective_wos_90d: recentCorrectiveWOs.length,
         maintenance_incidents_12m: maintenanceIncidents.length,
       });
-    });
+    }
 
     // Sort by risk score descending
     riskScores.sort((a, b) => b.risk_score - a.risk_score);
