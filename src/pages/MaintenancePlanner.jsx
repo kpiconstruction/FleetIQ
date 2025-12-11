@@ -367,12 +367,22 @@ export default function MaintenancePlanner() {
                     </TableCell>
                     <TableCell>
                       {plan.next_due_odometer_km ? (
-                        <div>
-                          <p className="font-medium">{plan.next_due_odometer_km.toLocaleString()}</p>
-                          {plan.vehicle.current_odometer_km && (
-                            <p className="text-xs text-slate-500">
-                              Current: {plan.vehicle.current_odometer_km.toLocaleString()}
-                            </p>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{plan.next_due_odometer_km.toLocaleString()} km</span>
+                          {plan.current_odometer_km && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              Current: {plan.current_odometer_km.toLocaleString()} km
+                              {plan.odometer_source && (
+                                <span className="ml-1">
+                                  ({plan.odometer_source === "Prestart" ? "Prestart" : plan.odometer_source})
+                                </span>
+                              )}
+                              {plan.odometer_confidence === "Low" && (
+                                <span className="ml-1 text-amber-600 dark:text-amber-400" title="Prestart odometer looks inconsistent">
+                                  ⚠️
+                                </span>
+                              )}
+                            </span>
                           )}
                         </div>
                       ) : (
