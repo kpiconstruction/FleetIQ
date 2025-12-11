@@ -16,6 +16,7 @@ import WorkerRiskProfile from './pages/WorkerRiskProfile';
 import HighRiskWorkers from './pages/HighRiskWorkers';
 import MaintenancePlanner from './pages/MaintenancePlanner';
 import MaintenanceOverview from './pages/MaintenanceOverview';
+import MaintenanceOperationalControl from './pages/MaintenanceOperationalControl';
 import __Layout from './Layout.jsx';
 
 
@@ -38,6 +39,7 @@ export const PAGES = {
     "HighRiskWorkers": HighRiskWorkers,
     "MaintenancePlanner": MaintenancePlanner,
     "MaintenanceOverview": MaintenanceOverview,
+    "MaintenanceOperationalControl": MaintenanceOperationalControl,
 }
 
 export const pagesConfig = {

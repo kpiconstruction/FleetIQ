@@ -32,6 +32,7 @@ const navItems = [
   { name: "Vehicles", icon: Truck, page: "Vehicles" },
   { name: "Prestarts", icon: ClipboardCheck, page: "Prestarts" },
   { name: "Maintenance Overview", icon: Activity, page: "MaintenanceOverview" },
+  { name: "Maintenance Control", icon: Wrench, page: "MaintenanceOperationalControl" },
   { name: "Maintenance Planner", icon: Wrench, page: "MaintenancePlanner" },
   { name: "Service", icon: Wrench, page: "Service" },
   { name: "Downtime", icon: Clock, page: "Downtime" },
