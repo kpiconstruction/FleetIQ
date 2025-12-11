@@ -10,9 +10,46 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, batchId, rows, mapping, includeDuplicates } = body;
+    const { action, batchId, rows, mapping, includeDuplicates, rowId, updateData } = body;
+
+    // Handle single row update
+    if (action === 'updateRow') {
+      if (!rowId || !updateData) {
+        return Response.json({ error: 'Missing rowId or updateData' }, { status: 400 });
+      }
+
+      await base44.asServiceRole.entities.ImportedServiceRow.update(rowId, updateData);
+
+      return Response.json({
+        success: true,
+        message: 'Row updated successfully',
+      });
+    }
 
     if (action === 'validateAndMap') {
+      const rowCount = rows.length;
+      const LARGE_FILE_THRESHOLD = 5000;
+
+      // For large files, update batch status and return immediately
+      if (rowCount > LARGE_FILE_THRESHOLD) {
+        // Update batch status to Validating
+        if (batchId) {
+          await base44.asServiceRole.entities.ImportBatch.update(batchId, {
+            status: 'Validating',
+            summary_json: { totalRows: rowCount, status: 'Processing in background' }
+          });
+        }
+
+        // Return job ID (use batchId as job reference)
+        return Response.json({
+          success: true,
+          isBackgroundJob: true,
+          jobId: batchId,
+          message: `Processing ${rowCount} rows in background. Check batch status for progress.`,
+        });
+      }
+
+      // For small files, process synchronously
       // Fetch vehicles for matching
       const vehicles = await base44.asServiceRole.entities.Vehicle.list();
       
@@ -142,6 +179,27 @@ Deno.serve(async (req) => {
       const importedRows = await base44.asServiceRole.entities.ImportedServiceRow.filter({ 
         import_batch_id: batchId 
       });
+
+      const LARGE_FILE_THRESHOLD = 5000;
+
+      // For large batches, update status and return immediately
+      if (importedRows.length > LARGE_FILE_THRESHOLD) {
+        await base44.asServiceRole.entities.ImportBatch.update(batchId, {
+          status: 'Committing',
+          summary_json: { 
+            ...batch.summary_json, 
+            totalRows: importedRows.length, 
+            status: 'Committing in background' 
+          }
+        });
+
+        return Response.json({
+          success: true,
+          isBackgroundJob: true,
+          jobId: batchId,
+          message: `Committing ${importedRows.length} rows in background. Check batch status for progress.`,
+        });
+      }
 
       // Filter rows eligible for commit
       let eligibleRows = importedRows.filter(r => 

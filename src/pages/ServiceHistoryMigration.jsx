@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
@@ -14,7 +14,15 @@ import {
   ArrowRight,
   Download,
   X,
+  Search,
+  Edit,
+  Trash2,
+  Save,
+  Ban,
+  RefreshCw,
 } from "lucide-react";
+import VehicleSearchDialog from "../components/migration/VehicleSearchDialog";
+import MappingTemplateManager from "../components/migration/MappingTemplateManager";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,6 +70,15 @@ export default function ServiceHistoryMigration() {
   const [summary, setSummary] = useState(null);
   const [includeDuplicates, setIncludeDuplicates] = useState(false);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
+  const [vehicleSearchOpen, setVehicleSearchOpen] = useState(false);
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [editingRow, setEditingRow] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isBackgroundJob, setIsBackgroundJob] = useState(false);
+  const [jobId, setJobId] = useState(null);
+  const rowsPerPage = 50;
 
   const queryClient = useQueryClient();
 
@@ -70,9 +87,10 @@ export default function ServiceHistoryMigration() {
     queryFn: () => base44.entities.ImportBatch.list("-created_date", 50),
   });
 
-  const { data: vehicles = [] } = useQuery({
-    queryKey: ["vehicles"],
-    queryFn: () => base44.entities.Vehicle.list(),
+  const { data: importedRows = [], refetch: refetchRows } = useQuery({
+    queryKey: ["importedRows", selectedBatch?.id],
+    queryFn: () => base44.entities.ImportedServiceRow.filter({ import_batch_id: selectedBatch.id }),
+    enabled: !!selectedBatch && step === 4,
   });
 
   const createBatchMutation = useMutation({
@@ -88,15 +106,37 @@ export default function ServiceHistoryMigration() {
     mutationFn: async ({ rows, mapping }) => {
       const response = await base44.functions.invoke("processServiceImport", {
         action: "validateAndMap",
+        batchId: selectedBatch.id,
         rows,
         mapping,
       });
       return response.data;
     },
     onSuccess: (data) => {
-      setValidatedRows(data.validatedRows);
-      setSummary(data.summary);
+      if (data.isBackgroundJob) {
+        setIsBackgroundJob(true);
+        setJobId(data.jobId);
+      } else {
+        setValidatedRows(data.validatedRows);
+        setSummary(data.summary);
+      }
       setStep(4);
+    },
+  });
+
+  const updateRowMutation = useMutation({
+    mutationFn: async ({ rowId, updateData }) => {
+      const response = await base44.functions.invoke("processServiceImport", {
+        action: "updateRow",
+        rowId,
+        updateData,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      refetchRows();
+      setEditingRowId(null);
+      setEditingRow(null);
     },
   });
 
@@ -109,14 +149,20 @@ export default function ServiceHistoryMigration() {
       });
       return response.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["importBatches"] });
-      setCommitDialogOpen(false);
-      setStep(1);
-      setSelectedBatch(null);
-      setParsedData([]);
-      setMapping({});
-      setValidatedRows([]);
+    onSuccess: (data) => {
+      if (data.isBackgroundJob) {
+        setIsBackgroundJob(true);
+        setJobId(data.jobId);
+        setCommitDialogOpen(false);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["importBatches"] });
+        setCommitDialogOpen(false);
+        setStep(1);
+        setSelectedBatch(null);
+        setParsedData([]);
+        setMapping({});
+        setValidatedRows([]);
+      }
     },
   });
 
@@ -204,6 +250,91 @@ export default function ServiceHistoryMigration() {
       includeDuplicates,
     });
   };
+
+  const handleEditRow = (row) => {
+    setEditingRowId(row.id);
+    setEditingRow({ ...row });
+  };
+
+  const handleSaveRow = () => {
+    if (!editingRow) return;
+    
+    const updateData = {
+      mapped_asset_code: editingRow.mapped_asset_code,
+      mapped_vehicle_id: editingRow.mapped_vehicle_id,
+      mapped_service_date: editingRow.mapped_service_date,
+      mapped_odometer_km: editingRow.mapped_odometer_km,
+      mapped_workshop_name: editingRow.mapped_workshop_name,
+      mapped_service_type: editingRow.mapped_service_type,
+      mapped_labour_cost: editingRow.mapped_labour_cost,
+      mapped_parts_cost: editingRow.mapped_parts_cost,
+      mapped_total_cost: editingRow.mapped_total_cost,
+      mapped_notes: editingRow.mapped_notes,
+      resolution_status: editingRow.mapped_vehicle_id ? "Ready" : editingRow.resolution_status,
+    };
+
+    updateRowMutation.mutate({ rowId: editingRowId, updateData });
+  };
+
+  const handleMarkIgnored = (rowId) => {
+    updateRowMutation.mutate({
+      rowId,
+      updateData: { resolution_status: "Ignored" },
+    });
+  };
+
+  const handleSelectVehicle = (vehicle) => {
+    if (editingRow) {
+      setEditingRow({
+        ...editingRow,
+        mapped_vehicle_id: vehicle.id,
+        mapped_asset_code: vehicle.asset_code,
+      });
+    }
+    setVehicleSearchOpen(false);
+  };
+
+  // Filter and paginate rows
+  const { filteredRows, paginatedRows } = useMemo(() => {
+    let rows = importedRows.length > 0 ? importedRows : validatedRows;
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      rows = rows.filter(r => r.resolution_status === statusFilter);
+    }
+
+    // Apply search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      rows = rows.filter(r =>
+        r.mapped_asset_code?.toLowerCase().includes(term) ||
+        r.mapped_workshop_name?.toLowerCase().includes(term) ||
+        r.resolution_notes?.toLowerCase().includes(term)
+      );
+    }
+
+    // Paginate
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const paginatedRows = rows.slice(startIndex, startIndex + rowsPerPage);
+
+    return { filteredRows: rows, paginatedRows };
+  }, [importedRows, validatedRows, statusFilter, searchTerm, currentPage]);
+
+  const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+
+  // Calculate summary from imported rows
+  const calculatedSummary = useMemo(() => {
+    const rows = importedRows.length > 0 ? importedRows : validatedRows;
+    return {
+      total: rows.length,
+      mapped: rows.filter(r => r.resolution_status === "Mapped").length,
+      vehicleNotFound: rows.filter(r => r.resolution_status === "VehicleNotFound").length,
+      invalidData: rows.filter(r => r.resolution_status === "InvalidData").length,
+      duplicate: rows.filter(r => r.resolution_status === "Duplicate").length,
+      ready: rows.filter(r => r.resolution_status === "Ready").length,
+      ignored: rows.filter(r => r.resolution_status === "Ignored").length,
+    };
+  }, [importedRows, validatedRows]);
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -310,6 +441,12 @@ export default function ServiceHistoryMigration() {
               <CardDescription>Configure how your data maps to Fleet IQ</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="mb-4">
+                <MappingTemplateManager
+                  currentMapping={mapping}
+                  onApplyTemplate={(template) => setMapping(template)}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {Object.keys(parsedData[0]).map((col) => (
                   <div key={col} className="space-y-2">
@@ -391,75 +528,271 @@ export default function ServiceHistoryMigration() {
       )}
 
       {/* Step 4: Review */}
-      {step === 4 && summary && (
+      {step === 4 && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card>
+          {isBackgroundJob && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
+              <AlertDescription>
+                Processing large file in background. Check batch status in the import batches list.
+                Job ID: {jobId}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <Card
+              className={`cursor-pointer transition-all ${statusFilter === "all" ? "ring-2 ring-indigo-600" : "hover:shadow-md"}`}
+              onClick={() => setStatusFilter("all")}
+            >
               <CardContent className="pt-6">
-                <p className="text-2xl font-bold text-emerald-600">{summary.mapped}</p>
+                <p className="text-2xl font-bold text-slate-900">{calculatedSummary.total}</p>
+                <p className="text-sm text-slate-600">Total Rows</p>
+              </CardContent>
+            </Card>
+            <Card
+              className={`cursor-pointer transition-all ${statusFilter === "Mapped" ? "ring-2 ring-emerald-600" : "hover:shadow-md"}`}
+              onClick={() => setStatusFilter("Mapped")}
+            >
+              <CardContent className="pt-6">
+                <p className="text-2xl font-bold text-emerald-600">{calculatedSummary.mapped}</p>
                 <p className="text-sm text-slate-600">Mapped</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card
+              className={`cursor-pointer transition-all ${statusFilter === "Ready" ? "ring-2 ring-blue-600" : "hover:shadow-md"}`}
+              onClick={() => setStatusFilter("Ready")}
+            >
               <CardContent className="pt-6">
-                <p className="text-2xl font-bold text-rose-600">{summary.vehicleNotFound}</p>
-                <p className="text-sm text-slate-600">Vehicle Not Found</p>
+                <p className="text-2xl font-bold text-blue-600">{calculatedSummary.ready}</p>
+                <p className="text-sm text-slate-600">Ready</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card
+              className={`cursor-pointer transition-all ${statusFilter === "VehicleNotFound" ? "ring-2 ring-rose-600" : "hover:shadow-md"}`}
+              onClick={() => setStatusFilter("VehicleNotFound")}
+            >
               <CardContent className="pt-6">
-                <p className="text-2xl font-bold text-amber-600">{summary.invalidData}</p>
-                <p className="text-sm text-slate-600">Invalid Data</p>
+                <p className="text-2xl font-bold text-rose-600">{calculatedSummary.vehicleNotFound}</p>
+                <p className="text-sm text-slate-600">Not Found</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card
+              className={`cursor-pointer transition-all ${statusFilter === "Duplicate" ? "ring-2 ring-violet-600" : "hover:shadow-md"}`}
+              onClick={() => setStatusFilter("Duplicate")}
+            >
               <CardContent className="pt-6">
-                <p className="text-2xl font-bold text-violet-600">{summary.duplicate}</p>
+                <p className="text-2xl font-bold text-violet-600">{calculatedSummary.duplicate}</p>
                 <p className="text-sm text-slate-600">Duplicates</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card
+              className={`cursor-pointer transition-all ${statusFilter === "Ignored" ? "ring-2 ring-slate-600" : "hover:shadow-md"}`}
+              onClick={() => setStatusFilter("Ignored")}
+            >
               <CardContent className="pt-6">
-                <p className="text-2xl font-bold text-slate-900">{summary.total}</p>
-                <p className="text-sm text-slate-600">Total Rows</p>
+                <p className="text-2xl font-bold text-slate-600">{calculatedSummary.ignored}</p>
+                <p className="text-sm text-slate-600">Ignored</p>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Validation Results</CardTitle>
-              <CardDescription>
-                Review mapped rows. Ready rows will be committed.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Validation Results</CardTitle>
+                  <CardDescription>
+                    Review and edit mapped rows. Ready rows will be committed.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-64"
+                    />
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Asset Code</TableHead>
-                    <TableHead>Service Date</TableHead>
-                    <TableHead>Odometer</TableHead>
-                    <TableHead>Workshop</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {validatedRows.slice(0, 50).map((row, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{getStatusBadge(row.resolution_status)}</TableCell>
-                      <TableCell className="font-medium">{row.mapped_asset_code}</TableCell>
-                      <TableCell>{row.mapped_service_date}</TableCell>
-                      <TableCell>{row.mapped_odometer_km || "-"}</TableCell>
-                      <TableCell>{row.mapped_workshop_name || "-"}</TableCell>
-                      <TableCell>${row.mapped_total_cost || 0}</TableCell>
-                      <TableCell className="text-xs text-slate-500">{row.resolution_notes}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Asset Code</TableHead>
+                      <TableHead>Service Date</TableHead>
+                      <TableHead>Odometer</TableHead>
+                      <TableHead>Workshop</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Cost</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedRows.map((row) => {
+                      const isEditing = editingRowId === row.id;
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell>{getStatusBadge(row.resolution_status)}</TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={editingRow.mapped_asset_code || ""}
+                                  onChange={(e) => setEditingRow({ ...editingRow, mapped_asset_code: e.target.value })}
+                                  className="w-32"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setVehicleSearchOpen(true)}
+                                  title="Search Vehicle"
+                                >
+                                  <Search className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="font-medium">{row.mapped_asset_code}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <Input
+                                type="date"
+                                value={editingRow.mapped_service_date || ""}
+                                onChange={(e) => setEditingRow({ ...editingRow, mapped_service_date: e.target.value })}
+                                className="w-36"
+                              />
+                            ) : (
+                              row.mapped_service_date
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editingRow.mapped_odometer_km || ""}
+                                onChange={(e) => setEditingRow({ ...editingRow, mapped_odometer_km: parseFloat(e.target.value) })}
+                                className="w-24"
+                              />
+                            ) : (
+                              row.mapped_odometer_km || "-"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <Input
+                                value={editingRow.mapped_workshop_name || ""}
+                                onChange={(e) => setEditingRow({ ...editingRow, mapped_workshop_name: e.target.value })}
+                                className="w-32"
+                              />
+                            ) : (
+                              row.mapped_workshop_name || "-"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <Select
+                                value={editingRow.mapped_service_type || "Unscheduled"}
+                                onValueChange={(val) => setEditingRow({ ...editingRow, mapped_service_type: val })}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                                  <SelectItem value="Unscheduled">Unscheduled</SelectItem>
+                                  <SelectItem value="Breakdown">Breakdown</SelectItem>
+                                  <SelectItem value="HireProviderService">Hire Provider</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              row.mapped_service_type || "-"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={editingRow.mapped_total_cost || ""}
+                                onChange={(e) => setEditingRow({ ...editingRow, mapped_total_cost: parseFloat(e.target.value) })}
+                                className="w-24"
+                              />
+                            ) : (
+                              `$${row.mapped_total_cost || 0}`
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-500 max-w-xs truncate">
+                            {row.resolution_notes}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {isEditing ? (
+                                <>
+                                  <Button size="sm" variant="outline" onClick={handleSaveRow} disabled={updateRowMutation.isPending}>
+                                    <Save className="w-3 h-3" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingRowId(null)}>
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button size="sm" variant="ghost" onClick={() => handleEditRow(row)}>
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  {row.resolution_status !== "Ignored" && (
+                                    <Button size="sm" variant="ghost" onClick={() => handleMarkIgnored(row.id)}>
+                                      <Ban className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-slate-600">
+                    Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredRows.length)} of {filteredRows.length} rows
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-slate-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -476,8 +809,12 @@ export default function ServiceHistoryMigration() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setStep(2)}>Back to Mapping</Button>
-              <Button onClick={() => setCommitDialogOpen(true)} className="bg-indigo-600">
-                Commit {summary.mapped + (includeDuplicates ? summary.duplicate : 0)} Records
+              <Button
+                onClick={() => setCommitDialogOpen(true)}
+                className="bg-indigo-600"
+                disabled={calculatedSummary.mapped === 0 && calculatedSummary.ready === 0}
+              >
+                Commit {calculatedSummary.mapped + calculatedSummary.ready + (includeDuplicates ? calculatedSummary.duplicate : 0)} Records
               </Button>
             </div>
           </div>
@@ -490,7 +827,7 @@ export default function ServiceHistoryMigration() {
           <DialogHeader>
             <DialogTitle>Confirm Batch Commit</DialogTitle>
             <DialogDescription>
-              This will create {summary?.mapped || 0} {includeDuplicates ? `+ ${summary?.duplicate || 0} duplicate` : ""} service records.
+              This will create {calculatedSummary.mapped + calculatedSummary.ready} {includeDuplicates ? `+ ${calculatedSummary.duplicate} duplicate` : ""} service records.
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -508,6 +845,13 @@ export default function ServiceHistoryMigration() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Vehicle Search Dialog */}
+      <VehicleSearchDialog
+        open={vehicleSearchOpen}
+        onClose={() => setVehicleSearchOpen(false)}
+        onSelect={handleSelectVehicle}
+      />
     </div>
   );
 }
