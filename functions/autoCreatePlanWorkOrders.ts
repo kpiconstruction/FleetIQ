@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { logAutomationRun, isAutomationEnabled } from './services/fleetLogger.js';
 
 Deno.serve(async (req) => {
   try {
