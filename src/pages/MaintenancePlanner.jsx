@@ -337,7 +337,7 @@ export default function MaintenancePlanner() {
                       {plan.vehicle.vehicle_function_class}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {plan.template.name}
+                      {plan.template?.name || "Ad-hoc"}
                       {plan.is_hvnl_critical && (
                         <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 text-xs">
                           HVNL

@@ -185,10 +185,11 @@ export default function MaintenanceOverview() {
   }, [vehicles]);
 
   const templateMap = useMemo(() => {
-    return maintenanceTemplates.reduce((acc, t) => {
-      acc[t.id] = t;
-      return acc;
-    }, {});
+    const map = {};
+    maintenanceTemplates.forEach(t => {
+      if (t && t.id) map[t.id] = t;
+    });
+    return map;
   }, [maintenanceTemplates]);
 
   // Filter vehicles based on criteria
