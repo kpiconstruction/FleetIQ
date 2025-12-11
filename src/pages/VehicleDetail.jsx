@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { usePermissions } from "../components/auth/usePermissions";
 import WorkOrderForm from "../components/maintenance/WorkOrderForm";
+import WorkOrderCompletionDialog from "../components/maintenance/WorkOrderCompletionDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,6 +56,7 @@ export default function VehicleDetail() {
   const [raiseWorkOrderDialog, setRaiseWorkOrderDialog] = useState(null);
   const [workOrderForm, setWorkOrderForm] = useState({});
   const [adHocWorkOrderDialog, setAdHocWorkOrderDialog] = useState(false);
+  const [completionDialog, setCompletionDialog] = useState(null);
 
   const queryClient = useQueryClient();
 
@@ -238,6 +240,21 @@ export default function VehicleDetail() {
   const submitAdHocWorkOrder = (data) => {
     createWorkOrderMutation.mutate(data);
     setAdHocWorkOrderDialog(false);
+  };
+
+  const updateWorkOrderMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.MaintenanceWorkOrder.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenanceWorkOrders"] });
+      setCompletionDialog(null);
+    },
+  });
+
+  const handleCompleteWorkOrder = (updateData) => {
+    updateWorkOrderMutation.mutate({
+      id: completionDialog.id,
+      data: updateData,
+    });
   };
 
   if (vehicleLoading) {
@@ -580,8 +597,9 @@ export default function VehicleDetail() {
                     <TableHead>Due Date</TableHead>
                     <TableHead>Workshop/Provider</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Completion</TableHead>
                     <TableHead>Service Record</TableHead>
-                  </TableRow>
+                    </TableRow>
                 </TableHeader>
                 <TableBody>
                   {maintenanceWorkOrders.map((wo) => {
@@ -611,6 +629,7 @@ export default function VehicleDetail() {
                         </TableCell>
                         <TableCell className="font-medium">{template?.name || "Ad-hoc"}</TableCell>
                         <TableCell>
+                          <div className="flex items-center gap-2 flex-wrap">
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
@@ -636,8 +655,42 @@ export default function VehicleDetail() {
                                 Incident
                               </Badge>
                             )}
-                          </div>
-                        </TableCell>
+                            </div>
+                            </TableCell>
+                            <TableCell>
+                            {wo.status === "Completed" ? (
+                              vehicle.ownership_type === "Owned" ? (
+                                wo.purchase_order_number ? (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                                    PO: {wo.purchase_order_number}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                    ⚠️ No PO
+                                  </Badge>
+                                )
+                              ) : (
+                                wo.confirmed_downtime_hours ? (
+                                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                                    ✓ {wo.confirmed_downtime_hours}h
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                    ⚠️ Not confirmed
+                                  </Badge>
+                                )
+                              )
+                            ) : wo.status === "Open" && can.updateWorkOrder ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setCompletionDialog(wo)}
+                                className="text-xs"
+                              >
+                                Complete
+                              </Button>
+                            ) : null}
+                            </TableCell>
                         <TableCell>
                           {linkedService ? (
                             <span className="text-sm text-indigo-600 dark:text-indigo-400">
@@ -652,7 +705,7 @@ export default function VehicleDetail() {
                   })}
                   {maintenanceWorkOrders.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                      <TableCell colSpan={8} className="text-center py-8 text-slate-500 dark:text-slate-400">
                         No work orders
                       </TableCell>
                     </TableRow>
@@ -1014,6 +1067,18 @@ export default function VehicleDetail() {
         onSubmit={submitAdHocWorkOrder}
         isSubmitting={createWorkOrderMutation.isPending}
       />
+
+      {/* Work Order Completion Dialog */}
+      {completionDialog && (
+        <WorkOrderCompletionDialog
+          open={!!completionDialog}
+          onOpenChange={() => setCompletionDialog(null)}
+          workOrder={completionDialog}
+          vehicle={vehicle}
+          onComplete={handleCompleteWorkOrder}
+          isSubmitting={updateWorkOrderMutation.isPending}
+        />
+      )}
       </div>
       );
       }
