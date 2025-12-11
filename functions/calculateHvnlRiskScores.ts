@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { getNotificationEmail } from './getNotificationEmail.js';
 
 Deno.serve(async (req) => {
   try {

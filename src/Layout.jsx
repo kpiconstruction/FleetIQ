@@ -50,6 +50,7 @@ const safetyItems = [
 const adminItems = [
   { name: "Hire Providers", icon: Building2, page: "HireProviders" },
   { name: "Contracts", icon: FileText, page: "Contracts" },
+  { name: "Notification Settings", icon: Settings, page: "NotificationSettings", requireFleetAdmin: true },
 ];
 
 function LayoutContent({ children, currentPageName }) {
@@ -64,6 +65,13 @@ function LayoutContent({ children, currentPageName }) {
   const filteredNavItems = navItems.filter(item => {
     if (item.requirePermission) {
       return can[item.requirePermission];
+    }
+    return true;
+  });
+
+  const filteredAdminItems = adminItems.filter(item => {
+    if (item.requireFleetAdmin) {
+      return can.createMaintenanceTemplate; // FleetAdmin check
     }
     return true;
   });
@@ -162,7 +170,7 @@ function LayoutContent({ children, currentPageName }) {
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="pl-4 space-y-1 pt-1">
-                {adminItems.map((item) => (
+                {filteredAdminItems.map((item) => (
                   <NavLink key={item.page} item={item} onClick={() => setSidebarOpen(false)} />
                 ))}
               </CollapsibleContent>
