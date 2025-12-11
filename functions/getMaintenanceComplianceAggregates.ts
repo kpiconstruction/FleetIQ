@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { getCached, setCached } from './services/aggregateCache.js';
 
 Deno.serve(async (req) => {
   try {
@@ -13,6 +14,13 @@ Deno.serve(async (req) => {
     // Parse request body
     const body = await req.json();
     const { dateRangeStart, dateRangeEnd, stateFilter, functionClassFilter, ownershipFilter, providerFilter } = body;
+
+    // Check cache first
+    const cacheKey = { dateRangeStart, dateRangeEnd, stateFilter, functionClassFilter, ownershipFilter, providerFilter };
+    const cached = getCached('getMaintenanceComplianceAggregates', cacheKey);
+    if (cached) {
+      return Response.json(cached);
+    }
 
     const startDate = new Date(dateRangeStart);
     const endDate = new Date(dateRangeEnd);
@@ -165,7 +173,7 @@ Deno.serve(async (req) => {
         ? ((aggregates.hvnl.servicesCompletedOnTime / hvnlTotal) * 100).toFixed(1) 
         : 0;
 
-    return Response.json({
+    const result = {
       success: true,
       aggregates,
       filters: {
@@ -176,7 +184,12 @@ Deno.serve(async (req) => {
         ownershipFilter,
         providerFilter,
       },
-    });
+    };
+
+    // Cache for 3 minutes
+    setCached('getMaintenanceComplianceAggregates', cacheKey, result, 3 * 60 * 1000);
+
+    return Response.json(result);
 
   } catch (error) {
     console.error('Maintenance compliance aggregates error:', error);
