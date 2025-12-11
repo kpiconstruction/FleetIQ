@@ -8,8 +8,118 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Zap, AlertTriangle, Save, RefreshCw, Lock } from "lucide-react";
+import { Settings, Zap, AlertTriangle, Save, RefreshCw, Lock, FileText, Download, Camera } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+function HealthSnapshotCard() {
+  const [generating, setGenerating] = useState(false);
+  const [lastSnapshot, setLastSnapshot] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleGenerateSnapshot = async () => {
+    setGenerating(true);
+    setError(null);
+    
+    try {
+      const response = await base44.functions.invoke('generateFleetHealthSnapshot', {});
+      setLastSnapshot(response.data);
+      
+      // Download the snapshot
+      if (response.data.file_url) {
+        window.open(response.data.file_url, '_blank');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to generate snapshot');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <Card className="border-2 border-indigo-200">
+      <CardHeader className="bg-indigo-50">
+        <CardTitle className="flex items-center gap-2 text-indigo-900">
+          <Camera className="w-6 h-6" />
+          Fleet Health Snapshot
+        </CardTitle>
+        <CardDescription className="text-indigo-800">
+          Generate a comprehensive baseline report before Trae migration
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6 space-y-4">
+        <div className="p-4 bg-slate-50 rounded-lg space-y-3">
+          <h3 className="font-semibold text-slate-900">What's included in the snapshot?</h3>
+          <ul className="space-y-2 text-sm text-slate-700">
+            <li className="flex items-start gap-2">
+              <span className="text-indigo-600 font-bold">•</span>
+              <span><strong>Counts:</strong> Vehicles, maintenance plans, work orders, defects, incidents by state/type/severity</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-indigo-600 font-bold">•</span>
+              <span><strong>KPIs:</strong> On-time maintenance (3/6/12 months), HVNL compliance, cost breakdowns</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-indigo-600 font-bold">•</span>
+              <span><strong>Analysis:</strong> Downtime by cause, odometer data quality, worker risk distribution</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-indigo-600 font-bold">•</span>
+              <span><strong>Format:</strong> Timestamped JSON file with all metrics for audit trail</span>
+            </li>
+          </ul>
+        </div>
+
+        {error && (
+          <Alert className="bg-rose-50 border-rose-200">
+            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <AlertDescription className="text-rose-800">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {lastSnapshot && (
+          <Alert className="bg-emerald-50 border-emerald-200">
+            <AlertDescription className="text-emerald-800">
+              <div className="space-y-1">
+                <p className="font-semibold">✓ Snapshot generated successfully</p>
+                <p className="text-xs">
+                  <strong>File:</strong> {lastSnapshot.filename}
+                </p>
+                <p className="text-xs">
+                  <strong>Vehicles:</strong> {lastSnapshot.snapshot?.summary?.total_vehicles} • 
+                  <strong> Open WOs:</strong> {lastSnapshot.snapshot?.summary?.open_work_orders} • 
+                  <strong> Overdue:</strong> {lastSnapshot.snapshot?.summary?.overdue_work_orders}
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Button
+          onClick={handleGenerateSnapshot}
+          disabled={generating}
+          className="w-full bg-indigo-600 hover:bg-indigo-700"
+          size="lg"
+        >
+          {generating ? (
+            <>
+              <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+              Generating Snapshot...
+            </>
+          ) : (
+            <>
+              <FileText className="w-5 h-5 mr-2" />
+              Generate Health Snapshot
+            </>
+          )}
+        </Button>
+
+        <p className="text-xs text-slate-500 text-center">
+          Captures current system state as a baseline. Run this before enabling Migration Mode.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AutomationControl() {
   const { isFleetAdmin, can, fleetRole } = usePermissions();
@@ -428,21 +538,25 @@ export default function AutomationControl() {
 
         {/* Reporting Tab */}
         <TabsContent value="reporting">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scheduled Reporting</CardTitle>
-              <CardDescription>
-                Configure automatic report generation and distribution
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Alert className="bg-blue-50 border-blue-200">
-                <AlertDescription className="text-blue-800">
-                  Scheduled reporting features are configured through backend scheduled jobs. Monthly HVNL and compliance reports are automatically generated on the 1st of each month.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Scheduled Reporting</CardTitle>
+                <CardDescription>
+                  Configure automatic report generation and distribution
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertDescription className="text-blue-800">
+                    Scheduled reporting features are configured through backend scheduled jobs. Monthly HVNL and compliance reports are automatically generated on the 1st of each month.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+
+            <HealthSnapshotCard />
+          </div>
         </TabsContent>
 
         {/* Alert Logs Tab */}
