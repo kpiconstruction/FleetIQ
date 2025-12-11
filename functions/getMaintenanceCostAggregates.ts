@@ -116,15 +116,15 @@ Deno.serve(async (req) => {
       if (!byClass[fc]) return;
 
       byClass[fc].totalKm += u.km_travelled || 0;
-      byClass[fc].totalHours += u.total_hours || 0;
+      byClass[fc].totalShifts = (byClass[fc].totalShifts || 0) + (u.shifts_count || 1);
     });
 
-    // Calculate cost per asset and cost per km/hour for each class
+    // Calculate cost per asset and cost per km/shift for each class
     Object.keys(byClass).forEach(fc => {
       const data = byClass[fc];
       data.costPerAsset = data.assetCount > 0 ? data.totalCost / data.assetCount : 0;
       data.costPer1000Km = data.totalKm > 0 ? (data.totalCost / data.totalKm) * 1000 : 0;
-      data.costPerHour = data.totalHours > 0 ? data.totalCost / data.totalHours : 0;
+      data.costPerShift = data.totalShifts > 0 ? data.totalCost / data.totalShifts : 0;
     });
 
     // Aggregate by asset (for high-cost assets table)
@@ -144,10 +144,10 @@ Deno.serve(async (req) => {
 
       const vehicleUsage = periodUsageRecords.filter(u => u.vehicle_id === vehicle.id);
       const totalKm = vehicleUsage.reduce((sum, u) => sum + (u.km_travelled || 0), 0);
-      const totalHours = vehicleUsage.reduce((sum, u) => sum + (u.total_hours || 0), 0);
+      const totalShifts = vehicleUsage.reduce((sum, u) => sum + (u.shifts_count || 1), 0);
 
       const costPer1000Km = totalKm > 0 ? (totalCost / totalKm) * 1000 : 0;
-      const costPerHour = totalHours > 0 ? totalCost / totalHours : 0;
+      const costPerShift = totalShifts > 0 ? totalCost / totalShifts : 0;
 
       // Check for repeat repairs (corrective/defect WOs in last 90 days) - fetch only for this vehicle
       const recentCorrectiveWOs = await base44.asServiceRole.entities.MaintenanceWorkOrder.filter({
@@ -168,10 +168,10 @@ Deno.serve(async (req) => {
         vehicle_function_class: vehicle.vehicle_function_class,
         total_cost: Math.round(totalCost),
         cost_per_1000km: Math.round(costPer1000Km),
-        cost_per_hour: Math.round(costPerHour),
+        cost_per_shift: Math.round(costPerShift),
         service_count: vehicleServices.length,
         total_km: Math.round(totalKm),
-        total_hours: Math.round(totalHours),
+        total_shifts: totalShifts,
         repeat_repair_flag: repeatRepairFlag,
         repeat_repair_count: recentCorrectiveWOs.length,
       });

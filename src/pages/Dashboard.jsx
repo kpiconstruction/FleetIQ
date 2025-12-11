@@ -133,7 +133,7 @@ export default function Dashboard() {
   });
   const totalDowntimeHours = recentDowntime.reduce((sum, d) => sum + (d.downtime_hours || 0), 0);
 
-  // Chart Data
+  // Chart Data - shift-based utilisation
   const utilisationData = useMemo(() => {
     const weeks = [];
     for (let i = 7; i >= 0; i--) {
@@ -146,7 +146,7 @@ export default function Dashboard() {
       });
       weeks.push({
         week: format(weekStart, "MMM d"),
-        hours: weekUsage.reduce((sum, u) => sum + (u.total_hours || 0), 0),
+        shifts: weekUsage.reduce((sum, u) => sum + (u.shifts_count || 1), 0),
         km: weekUsage.reduce((sum, u) => sum + (u.km_travelled || 0), 0),
       });
     }

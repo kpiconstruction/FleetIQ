@@ -152,7 +152,7 @@ export default function VehicleDetail() {
 
   const thirtyDaysAgo = subDays(new Date(), 30);
   const recentUsage = usageRecords.filter((u) => new Date(u.usage_date) >= thirtyDaysAgo);
-  const totalHours30d = recentUsage.reduce((sum, u) => sum + (u.total_hours || 0), 0);
+  const totalShifts30d = recentUsage.reduce((sum, u) => sum + (u.shifts_count || 1), 0);
   const totalKm30d = recentUsage.reduce((sum, u) => sum + (u.km_travelled || 0), 0);
   const recentFuel = fuelTransactions.filter((f) => new Date(f.transaction_datetime) >= thirtyDaysAgo);
   const totalFuel30d = recentFuel.reduce((sum, f) => sum + (f.total_cost || 0), 0);
@@ -358,7 +358,7 @@ export default function VehicleDetail() {
             <Activity className="w-4 h-4" />
             <span className="text-sm font-medium">30 Day Activity</span>
           </div>
-          <p className="text-lg font-semibold">{Math.round(totalHours30d)} hrs</p>
+          <p className="text-lg font-semibold">{totalShifts30d} shifts</p>
           <p className="text-sm text-slate-500">{Math.round(totalKm30d).toLocaleString()} km</p>
         </div>
 
@@ -898,7 +898,8 @@ export default function VehicleDetail() {
               <TableHeader>
                 <TableRow className="bg-slate-50">
                   <TableHead>Date</TableHead>
-                  <TableHead>Hours</TableHead>
+                  <TableHead>Shifts</TableHead>
+                  <TableHead>Shift Type</TableHead>
                   <TableHead>Km</TableHead>
                   <TableHead>Jobs</TableHead>
                   <TableHead>Project</TableHead>
@@ -908,7 +909,8 @@ export default function VehicleDetail() {
                 {usageRecords.map((u) => (
                   <TableRow key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell>{format(new Date(u.usage_date), "d MMM yyyy")}</TableCell>
-                    <TableCell>{u.total_hours || "-"}</TableCell>
+                    <TableCell>{u.shifts_count || 1}</TableCell>
+                    <TableCell>{u.shift_type || "-"}</TableCell>
                     <TableCell>{u.km_travelled || "-"}</TableCell>
                     <TableCell>{u.jobs_count || "-"}</TableCell>
                     <TableCell>{u.project_code || "-"}</TableCell>
@@ -916,7 +918,7 @@ export default function VehicleDetail() {
                 ))}
                 {usageRecords.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">No usage records</TableCell>
+                    <TableCell colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">No usage records</TableCell>
                   </TableRow>
                 )}
               </TableBody>

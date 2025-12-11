@@ -374,12 +374,15 @@ export default function MaintenanceOverview() {
       });
 
       const totalKm = monthUsage.reduce((sum, u) => sum + (u.km_travelled || 0), 0);
+      const totalShifts = monthUsage.reduce((sum, u) => sum + (u.shifts_count || 1), 0);
       const costPer1000Km = totalKm > 0 ? (totalCost / totalKm) * 1000 : 0;
+      const costPerShift = totalShifts > 0 ? totalCost / totalShifts : 0;
 
       return {
         month: format(month, "MMM yy"),
         totalCost: Math.round(totalCost),
         costPer1000Km: Math.round(costPer1000Km),
+        costPerShift: Math.round(costPerShift),
       };
     });
   }, [serviceRecords, usageRecords, filteredVehicleIds, filters]);
@@ -860,7 +863,7 @@ export default function MaintenanceOverview() {
       </div>
 
       {/* Maintenance Cost Trend */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
           Maintenance Cost Trend
         </h2>
@@ -873,7 +876,7 @@ export default function MaintenanceOverview() {
             <Tooltip />
             <Legend />
             <Bar yAxisId="left" dataKey="totalCost" fill="#6366f1" name="Total Cost ($)" />
-            <Bar yAxisId="right" dataKey="costPer1000Km" fill="#f59e0b" name="Cost per 1,000 km ($)" />
+            <Bar yAxisId="right" dataKey="costPerShift" fill="#10b981" name="Cost per Shift ($)" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -946,7 +949,7 @@ export default function MaintenanceOverview() {
                   <TableHead>State</TableHead>
                   <TableHead>Total Cost</TableHead>
                   <TableHead>Cost/1000km</TableHead>
-                  <TableHead>Cost/Hour</TableHead>
+                  <TableHead>Cost/Shift</TableHead>
                   <TableHead>Services</TableHead>
                   <TableHead>Flags</TableHead>
                 </TableRow>
@@ -982,7 +985,7 @@ export default function MaintenanceOverview() {
                       {asset.total_km > 0 ? `$${asset.cost_per_1000km}` : "-"}
                     </TableCell>
                     <TableCell>
-                      {asset.total_hours > 0 ? `$${asset.cost_per_hour}` : "-"}
+                      {asset.total_shifts > 0 ? `$${asset.cost_per_shift}` : "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-slate-50">
