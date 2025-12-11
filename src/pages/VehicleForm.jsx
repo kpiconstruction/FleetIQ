@@ -283,8 +283,6 @@ export default function VehicleForm() {
                   <SelectItem value="VIC">VIC</SelectItem>
                   <SelectItem value="NSW">NSW</SelectItem>
                   <SelectItem value="QLD">QLD</SelectItem>
-                  <SelectItem value="SA">SA</SelectItem>
-                  <SelectItem value="WA">WA</SelectItem>
                   <SelectItem value="TAS">TAS</SelectItem>
                   <SelectItem value="NT">NT</SelectItem>
                   <SelectItem value="ACT">ACT</SelectItem>

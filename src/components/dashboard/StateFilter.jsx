@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
 
-const states = ["All", "VIC", "NSW", "QLD", "SA", "WA"];
+const states = ["All", "VIC", "NSW", "QLD"];
 
 export default function StateFilter({ selected, onChange }) {
   return (
