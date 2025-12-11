@@ -90,6 +90,30 @@ export default function MaintenanceOverview() {
     queryFn: () => base44.entities.HireProvider.list(),
   });
 
+  // Fetch compliance aggregates from backend
+  const { data: complianceData, isLoading: complianceLoading } = useQuery({
+    queryKey: [
+      "maintenanceCompliance",
+      filters.dateRangeStart,
+      filters.dateRangeEnd,
+      filters.state,
+      filters.functionClass,
+      filters.ownership,
+      filters.provider,
+    ],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getMaintenanceComplianceAggregates", {
+        dateRangeStart: filters.dateRangeStart,
+        dateRangeEnd: filters.dateRangeEnd,
+        stateFilter: filters.state,
+        functionClassFilter: filters.functionClass,
+        ownershipFilter: filters.ownership,
+        providerFilter: filters.provider,
+      });
+      return response.data;
+    },
+  });
+
   // Create lookup maps
   const vehicleMap = useMemo(() => {
     return vehicles.reduce((acc, v) => {
@@ -319,7 +343,20 @@ export default function MaintenanceOverview() {
     ];
   }, [workOrders, filteredVehicleIds, filters]);
 
-  const isLoading = vehiclesLoading;
+  const isLoading = vehiclesLoading || complianceLoading;
+
+  // Prepare compliance by state data for chart
+  const complianceByStateData = useMemo(() => {
+    if (!complianceData?.aggregates?.byState) return [];
+    return Object.entries(complianceData.aggregates.byState)
+      .map(([state, agg]) => ({
+        state,
+        compliance: parseFloat(agg.onTimeCompliancePercent),
+        completed: agg.servicesCompletedOnTime,
+        total: agg.servicesCompletedOnTime + agg.servicesCompletedLate,
+      }))
+      .sort((a, b) => b.compliance - a.compliance);
+  }, [complianceData]);
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
@@ -504,6 +541,159 @@ export default function MaintenanceOverview() {
             <p className="text-xs text-slate-400 mt-1">
               {Math.round(metrics.plannedDowntime)}h planned / {Math.round(metrics.unplannedDowntime)}h unplanned
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Compliance Widgets */}
+      {!complianceLoading && complianceData && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* On-Time Compliance by State */}
+          <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+              On-Time Compliance % by State
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={complianceByStateData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" domain={[0, 100]} stroke="#64748b" />
+                <YAxis dataKey="state" type="category" stroke="#64748b" />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                          <p className="font-semibold">{data.state}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            {data.compliance}% on-time
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {data.completed} / {data.total} services
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="compliance" fill="#6366f1" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {complianceByStateData.map((item) => (
+                <div key={item.state} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">{item.state}</p>
+                  <p className={`text-2xl font-bold ${item.compliance >= 90 ? 'text-emerald-600' : item.compliance >= 75 ? 'text-amber-600' : 'text-rose-600'}`}>
+                    {item.compliance}%
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {item.completed}/{item.total}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* HVNL Compliance Gauge */}
+          <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 rounded-2xl shadow-sm border border-red-100 dark:border-red-900 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              HVNL Compliance
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              HVNL-critical assets only
+            </p>
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-48 h-48">
+                <svg className="transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="#fee2e2"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke={
+                      parseFloat(complianceData.aggregates.hvnl.hvnlCompliancePercent) >= 95
+                        ? "#10b981"
+                        : parseFloat(complianceData.aggregates.hvnl.hvnlCompliancePercent) >= 85
+                        ? "#f59e0b"
+                        : "#ef4444"
+                    }
+                    strokeWidth="8"
+                    strokeDasharray={`${(parseFloat(complianceData.aggregates.hvnl.hvnlCompliancePercent) / 100) * 251.2} 251.2`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <p className="text-4xl font-bold text-slate-900 dark:text-slate-100">
+                    {complianceData.aggregates.hvnl.hvnlCompliancePercent}%
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">On-Time</p>
+                </div>
+              </div>
+              <div className="mt-4 w-full space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">Completed On-Time:</span>
+                  <span className="font-semibold">{complianceData.aggregates.hvnl.servicesCompletedOnTime}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">Completed Late:</span>
+                  <span className="font-semibold text-amber-600">{complianceData.aggregates.hvnl.servicesCompletedLate}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400">Still Overdue:</span>
+                  <span className="font-semibold text-rose-600">{complianceData.aggregates.hvnl.plansStillOverdue}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preventative Completion Ratio Card */}
+      {!complianceLoading && complianceData && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-8">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+            Preventative Completion Ratio
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="flex flex-col items-center justify-center bg-indigo-50 dark:bg-indigo-950/30 rounded-xl p-6">
+              <p className="text-5xl font-bold text-indigo-600 dark:text-indigo-400">
+                {complianceData.aggregates.overall.preventativeCompletionRatio}%
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 text-center">
+                Overall Completion Ratio
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Completed On-Time / Due in Period
+              </p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">Plans Due in Period</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                {complianceData.aggregates.overall.plansDueInPeriod}
+              </p>
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-6">
+              <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-2">Completed On-Time</p>
+              <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">
+                {complianceData.aggregates.overall.servicesCompletedOnTime}
+              </p>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-6">
+              <p className="text-sm text-amber-600 dark:text-amber-400 mb-2">Completed Late</p>
+              <p className="text-3xl font-bold text-amber-700 dark:text-amber-400">
+                {complianceData.aggregates.overall.servicesCompletedLate}
+              </p>
+            </div>
           </div>
         </div>
       )}
