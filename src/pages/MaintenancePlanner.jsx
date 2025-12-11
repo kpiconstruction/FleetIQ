@@ -11,7 +11,9 @@ import {
   Clock,
   Plus,
   ChevronRight,
+  Lock,
 } from "lucide-react";
+import { usePermissions } from "../components/auth/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,6 +44,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function MaintenancePlanner() {
+  const { can, fleetRole } = usePermissions();
+
   const [filters, setFilters] = useState({
     dateRangeStart: format(new Date(), "yyyy-MM-dd"),
     dateRangeEnd: format(addDays(new Date(), 60), "yyyy-MM-dd"),
