@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { hasPermission } from './checkPermissions.js';
+import { applyCostRulesForServiceRecord } from './maintenanceCostRules.js';
 
 Deno.serve(async (req) => {
   try {
@@ -229,10 +230,19 @@ Deno.serve(async (req) => {
         eligibleRows = [...eligibleRows, ...duplicateRows];
       }
 
+      // Fetch vehicles for cost rules application
+      const vehicleIds = [...new Set(eligibleRows.map(r => r.mapped_vehicle_id).filter(Boolean))];
+      const vehiclesPromises = vehicleIds.map(id => 
+        base44.asServiceRole.entities.Vehicle.filter({ id }).then(v => v[0])
+      );
+      const vehicles = await Promise.all(vehiclesPromises);
+      const vehicleMap = {};
+      vehicles.forEach(v => { if (v) vehicleMap[v.id] = v; });
+
       // Create service records
       const serviceRecords = [];
       for (const row of eligibleRows) {
-        const serviceRecord = {
+        let serviceRecord = {
           vehicle_id: row.mapped_vehicle_id,
           service_date: row.mapped_service_date,
           odometer_km: row.mapped_odometer_km,
@@ -247,6 +257,16 @@ Deno.serve(async (req) => {
           import_batch_id: batchId,
           imported_row_id: row.id,
         };
+
+        // Apply cost rules
+        const vehicle = vehicleMap[row.mapped_vehicle_id];
+        if (vehicle) {
+          serviceRecord = applyCostRulesForServiceRecord({
+            vehicle,
+            workOrder: null,
+            serviceRecord
+          });
+        }
 
         // Remove null/undefined values
         Object.keys(serviceRecord).forEach(key => {

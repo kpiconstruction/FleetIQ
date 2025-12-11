@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { applyCostRulesForServiceRecord } from './maintenanceCostRules.js';
 
 Deno.serve(async (req) => {
   try {
@@ -75,12 +76,25 @@ Deno.serve(async (req) => {
       // Validate cost_chargeable_to for hire fleet
       const finalCostChargeableTo = cost_chargeable_to || (workOrder.work_order_type === 'Scheduled' ? 'HireProvider' : 'KPI');
       
+      // Apply cost rules for service record that will be created
+      const draftServiceRecord = {
+        vehicle_id: vehicle.id,
+        service_type: workOrder.work_order_type === 'Scheduled' ? 'Scheduled' : 'Unscheduled',
+        cost_chargeable_to: finalCostChargeableTo
+      };
+      
+      const correctedServiceRecord = applyCostRulesForServiceRecord({
+        vehicle,
+        workOrder,
+        serviceRecord: draftServiceRecord
+      });
+      
       return Response.json({ 
         valid: true, 
         ownership_type: ownershipType,
         confirmed_by: user.id,
         confirmed_at: new Date().toISOString(),
-        cost_chargeable_to: finalCostChargeableTo
+        cost_chargeable_to: correctedServiceRecord.cost_chargeable_to
       });
     }
 

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { applyCostRulesForServiceRecord } from './maintenanceCostRules.js';
 
 Deno.serve(async (req) => {
   try {
@@ -47,6 +48,7 @@ Deno.serve(async (req) => {
 
     const extracted = extractionResult.output;
     let resolvedVehicleId = vehicle_id;
+    let resolvedVehicle = null;
 
     // Try to resolve vehicle if not provided
     if (!resolvedVehicleId && extracted.rego_or_asset_code) {
@@ -59,13 +61,19 @@ Deno.serve(async (req) => {
       
       if (vehiclesByRego.length > 0) {
         resolvedVehicleId = vehiclesByRego[0].id;
+        resolvedVehicle = vehiclesByRego[0];
       } else if (vehiclesByAssetCode.length > 0) {
         resolvedVehicleId = vehiclesByAssetCode[0].id;
+        resolvedVehicle = vehiclesByAssetCode[0];
       }
+    } else if (resolvedVehicleId) {
+      // Fetch vehicle if ID was provided
+      const vehicles = await base44.asServiceRole.entities.Vehicle.filter({ id: resolvedVehicleId });
+      resolvedVehicle = vehicles.length > 0 ? vehicles[0] : null;
     }
 
     // Build draft service record data
-    const draftData = {
+    let draftData = {
       vehicle_id: resolvedVehicleId || null,
       service_date: extracted.service_date || new Date().toISOString().split('T')[0],
       odometer_km: extracted.odometer_km || null,
@@ -79,6 +87,15 @@ Deno.serve(async (req) => {
       source_system: 'Manual',
       service_type: 'Unscheduled'
     };
+
+    // Apply cost rules if vehicle resolved
+    if (resolvedVehicle) {
+      draftData = applyCostRulesForServiceRecord({
+        vehicle: resolvedVehicle,
+        workOrder: null,
+        serviceRecord: draftData
+      });
+    }
 
     // Determine if review is needed
     const needsReview = 

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { detectCostAnomaly } from './maintenanceCostRules.js';
 
 Deno.serve(async (req) => {
   try {
@@ -179,6 +180,15 @@ Deno.serve(async (req) => {
     // Sort by total cost descending
     assetAggregates.sort((a, b) => b.total_cost - a.total_cost);
 
+    // Detect cost anomalies (hire scheduled services with non-zero costs)
+    let anomalyCount = 0;
+    for (const serviceRecord of periodServiceRecords) {
+      const vehicle = vehicleMap[serviceRecord.vehicle_id];
+      if (vehicle && detectCostAnomaly(serviceRecord, vehicle)) {
+        anomalyCount++;
+      }
+    }
+
     return Response.json({
       success: true,
       byClass,
@@ -187,6 +197,7 @@ Deno.serve(async (req) => {
         total_cost: assetAggregates.reduce((sum, a) => sum + a.total_cost, 0),
         total_assets: assetAggregates.length,
         repeat_repair_assets: assetAggregates.filter(a => a.repeat_repair_flag).length,
+        cost_anomalies: anomalyCount,
       },
     });
 
