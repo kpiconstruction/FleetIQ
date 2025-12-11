@@ -23,6 +23,7 @@ import {
   Lock,
 } from "lucide-react";
 import { usePermissions } from "../components/auth/usePermissions";
+import WorkOrderForm from "../components/maintenance/WorkOrderForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -53,6 +54,7 @@ export default function VehicleDetail() {
 
   const [raiseWorkOrderDialog, setRaiseWorkOrderDialog] = useState(null);
   const [workOrderForm, setWorkOrderForm] = useState({});
+  const [adHocWorkOrderDialog, setAdHocWorkOrderDialog] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -231,6 +233,11 @@ export default function VehicleDetail() {
 
   const submitWorkOrder = () => {
     createWorkOrderMutation.mutate(workOrderForm);
+  };
+
+  const submitAdHocWorkOrder = (data) => {
+    createWorkOrderMutation.mutate(data);
+    setAdHocWorkOrderDialog(false);
   };
 
   if (vehicleLoading) {
@@ -441,9 +448,21 @@ export default function VehicleDetail() {
 
           {/* Active Maintenance Plans */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">
-              Active Maintenance Plans
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Active Maintenance Plans
+              </h3>
+              {can.createWorkOrder && (
+                <Button
+                  variant="outline"
+                  onClick={() => setAdHocWorkOrderDialog(true)}
+                  className="text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Work Order
+                </Button>
+              )}
+            </div>
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
               <Table>
                 <TableHeader>
@@ -471,7 +490,7 @@ export default function VehicleDetail() {
                           className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700"
                         >
                           <TableCell className="font-medium">
-                            {plan.template?.name || "Unknown"}
+                            {plan.template?.name || "—"}
                             {plan.is_hvnl_critical && (
                               <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 text-xs">
                                 HVNL
@@ -590,6 +609,7 @@ export default function VehicleDetail() {
                               ? providerMap[wo.assigned_to_hire_provider_id]?.name
                               : "-")}
                         </TableCell>
+                        <TableCell className="font-medium">{template?.name || "Ad-hoc"}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
@@ -972,6 +992,16 @@ export default function VehicleDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
+
+      {/* Ad-hoc Work Order Dialog */}
+      <WorkOrderForm
+        open={adHocWorkOrderDialog}
+        onOpenChange={setAdHocWorkOrderDialog}
+        vehicleId={vehicleId}
+        vehicle={vehicle}
+        onSubmit={submitAdHocWorkOrder}
+        isSubmitting={createWorkOrderMutation.isPending}
+      />
+      </div>
+      );
+      }
