@@ -629,7 +629,6 @@ export default function VehicleDetail() {
                         </TableCell>
                         <TableCell className="font-medium">{template?.name || "Ad-hoc"}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 flex-wrap">
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
@@ -655,10 +654,10 @@ export default function VehicleDetail() {
                                 Incident
                               </Badge>
                             )}
-                            </div>
-                            </TableCell>
-                            <TableCell>
-                            {wo.status === "Completed" ? (
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {wo.status === "Completed" ? (
                               vehicle.ownership_type === "Owned" ? (
                                 wo.purchase_order_number ? (
                                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
@@ -690,7 +689,7 @@ export default function VehicleDetail() {
                                 Complete
                               </Button>
                             ) : null}
-                            </TableCell>
+                        </TableCell>
                         <TableCell>
                           {linkedService ? (
                             <span className="text-sm text-indigo-600 dark:text-indigo-400">
@@ -1079,6 +1078,6 @@ export default function VehicleDetail() {
           isSubmitting={updateWorkOrderMutation.isPending}
         />
       )}
-      </div>
-      );
-      }
+    </div>
+  );
+}
