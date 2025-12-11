@@ -20,7 +20,9 @@ import {
   Wrench,
   AlertTriangle,
   Plus,
+  Lock,
 } from "lucide-react";
+import { usePermissions } from "../components/auth/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +47,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function VehicleDetail() {
+  const { can } = usePermissions();
   const urlParams = new URLSearchParams(window.location.search);
   const vehicleId = urlParams.get("id");
 
@@ -505,15 +508,28 @@ export default function VehicleDetail() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleRaiseWorkOrder(plan)}
-                              className="text-xs"
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Raise WO
-                            </Button>
+                            {can.createWorkOrder ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRaiseWorkOrder(plan)}
+                                className="text-xs"
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Raise WO
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                className="text-xs"
+                                title="FleetAdmin or WorkshopOps role required"
+                              >
+                                <Lock className="w-3 h-3 mr-1" />
+                                Raise WO
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );

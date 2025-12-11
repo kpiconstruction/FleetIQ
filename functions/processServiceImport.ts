@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { hasPermission } from './checkPermissions.js';
 
 Deno.serve(async (req) => {
   try {
@@ -11,6 +12,14 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, batchId, rows, mapping, includeDuplicates, rowId, updateData } = body;
+
+    // Check migration access permission
+    if (!hasPermission(user, 'accessMigration')) {
+      return Response.json({ 
+        error: 'Forbidden: You do not have permission to access migration features',
+        requiredRole: 'FleetAdmin or WorkshopOps'
+      }, { status: 403 });
+    }
 
     // Handle single row update
     if (action === 'updateRow') {
@@ -163,6 +172,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'commit') {
+      // Check commit permission (FleetAdmin only)
+      if (!hasPermission(user, 'commitMigrationBatch')) {
+        return Response.json({ 
+          error: 'Forbidden: Only Fleet Admins can commit migration batches',
+          requiredRole: 'FleetAdmin'
+        }, { status: 403 });
+      }
+
       // Fetch batch
       const batches = await base44.asServiceRole.entities.ImportBatch.filter({ id: batchId });
       const batch = batches[0];

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import VehicleSearchDialog from "../components/migration/VehicleSearchDialog";
 import MappingTemplateManager from "../components/migration/MappingTemplateManager";
+import { usePermissions } from "../components/auth/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,6 +63,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ServiceHistoryMigration() {
+  const { can, fleetRole } = usePermissions();
+
   const [step, setStep] = useState(1);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [parsedData, setParsedData] = useState([]);
@@ -81,6 +84,27 @@ export default function ServiceHistoryMigration() {
   const rowsPerPage = 50;
 
   const queryClient = useQueryClient();
+
+  // Check access permission
+  if (!can.accessMigration) {
+    return (
+      <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
+          <Lock className="w-16 h-16 text-rose-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+          <p className="text-slate-600 mb-4">
+            You do not have permission to access the Service History Migration module.
+          </p>
+          <p className="text-sm text-slate-500">
+            Required role: <strong>FleetAdmin</strong> or <strong>WorkshopOps</strong>
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Your current role: <strong>{fleetRole || "Viewer"}</strong>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const { data: batches = [], isLoading: batchesLoading } = useQuery({
     queryKey: ["importBatches"],
@@ -809,13 +833,24 @@ export default function ServiceHistoryMigration() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setStep(2)}>Back to Mapping</Button>
-              <Button
-                onClick={() => setCommitDialogOpen(true)}
-                className="bg-indigo-600"
-                disabled={calculatedSummary.mapped === 0 && calculatedSummary.ready === 0}
-              >
-                Commit {calculatedSummary.mapped + calculatedSummary.ready + (includeDuplicates ? calculatedSummary.duplicate : 0)} Records
-              </Button>
+              {can.commitMigrationBatch ? (
+                <Button
+                  onClick={() => setCommitDialogOpen(true)}
+                  className="bg-indigo-600"
+                  disabled={calculatedSummary.mapped === 0 && calculatedSummary.ready === 0}
+                >
+                  Commit {calculatedSummary.mapped + calculatedSummary.ready + (includeDuplicates ? calculatedSummary.duplicate : 0)} Records
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="bg-slate-400"
+                  title="FleetAdmin role required to commit batches"
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  Commit (FleetAdmin Only)
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -831,6 +866,14 @@ export default function ServiceHistoryMigration() {
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          {!can.commitMigrationBatch && (
+            <Alert className="bg-rose-50 border-rose-200">
+              <Lock className="w-4 h-4 text-rose-600" />
+              <AlertDescription className="text-rose-800">
+                You do not have permission to commit migration batches. Only FleetAdmin users can perform this action.
+              </AlertDescription>
+            </Alert>
+          )}
           <Alert>
             <AlertTriangle className="w-4 h-4" />
             <AlertDescription>
@@ -839,7 +882,11 @@ export default function ServiceHistoryMigration() {
           </Alert>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCommitDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCommit} disabled={commitMutation.isPending} className="bg-indigo-600">
+            <Button
+              onClick={handleCommit}
+              disabled={commitMutation.isPending || !can.commitMigrationBatch}
+              className="bg-indigo-600"
+            >
               {commitMutation.isPending ? "Committing..." : "Confirm Commit"}
             </Button>
           </DialogFooter>

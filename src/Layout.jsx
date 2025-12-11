@@ -26,6 +26,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ThemeProvider, useTheme } from "./components/ThemeProvider";
+import { usePermissions } from "./components/auth/usePermissions";
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
@@ -35,7 +36,7 @@ const navItems = [
   { name: "Maintenance Control", icon: Wrench, page: "MaintenanceOperationalControl" },
   { name: "Maintenance Planner", icon: Wrench, page: "MaintenancePlanner" },
   { name: "Provider Performance", icon: Building2, page: "HireProviderPerformance" },
-  { name: "Service Migration", icon: FileText, page: "ServiceHistoryMigration" },
+  { name: "Service Migration", icon: FileText, page: "ServiceHistoryMigration", requirePermission: "accessMigration" },
   { name: "Service", icon: Wrench, page: "Service" },
   { name: "Downtime", icon: Clock, page: "Downtime" },
   { name: "Usage", icon: Activity, page: "Usage" },
@@ -55,8 +56,17 @@ function LayoutContent({ children, currentPageName }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { can, fleetRole } = usePermissions();
 
   const isActive = (pageName) => currentPageName === pageName;
+
+  // Filter nav items based on permissions
+  const filteredNavItems = navItems.filter(item => {
+    if (item.requirePermission) {
+      return can[item.requirePermission];
+    }
+    return true;
+  });
 
   const NavLink = ({ item, onClick }) => (
     <Link
@@ -126,7 +136,7 @@ function LayoutContent({ children, currentPageName }) {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navItems.map((item) => (
+            {filteredNavItems.map((item) => (
               <NavLink key={item.page} item={item} onClick={() => setSidebarOpen(false)} />
             ))}
 
@@ -164,6 +174,11 @@ function LayoutContent({ children, currentPageName }) {
             <div className="px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/50 dark:to-violet-950/50 border border-indigo-100 dark:border-indigo-900">
               <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">KPI Group</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Traffic Management & Construction</p>
+              {fleetRole && (
+                <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1 font-medium">
+                  Role: {fleetRole}
+                </p>
+              )}
             </div>
             <div className="mt-3 flex justify-center">
               <Button
