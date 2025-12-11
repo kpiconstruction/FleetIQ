@@ -142,7 +142,7 @@ export default function PrestartDetail() {
             <User className="w-4 h-4" />
             <span className="text-sm">Operator</span>
           </div>
-          <p className="font-semibold">{prestart.operator_name}</p>
+          <p className="font-semibold">{prestart.worker_name || prestart.operator_name}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2 text-slate-500 mb-1">

@@ -57,7 +57,7 @@ export default function Prestarts() {
       if (filters.search) {
         const search = filters.search.toLowerCase();
         if (
-          !p.operator_name?.toLowerCase().includes(search) &&
+          !(p.worker_name || p.operator_name)?.toLowerCase().includes(search) &&
           !vehicle?.asset_code?.toLowerCase().includes(search) &&
           !vehicle?.rego?.toLowerCase().includes(search)
         ) {
@@ -80,7 +80,7 @@ export default function Prestarts() {
       return [
         format(new Date(p.prestart_datetime), "yyyy-MM-dd HH:mm"),
         vehicle?.asset_code || "",
-        p.operator_name,
+        p.worker_name || p.operator_name,
         p.prestart_type,
         p.overall_result,
         p.defect_count || 0,
@@ -203,7 +203,7 @@ export default function Prestarts() {
                         {p.prestart_type}
                       </span>
                     </TableCell>
-                    <TableCell>{p.operator_name}</TableCell>
+                    <TableCell>{p.worker_name || p.operator_name}</TableCell>
                     <TableCell className="text-slate-600">
                       {p.client_name && <div>{p.client_name}</div>}
                       {p.project_name && <div className="text-sm">{p.project_name}</div>}

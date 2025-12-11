@@ -269,7 +269,7 @@ export default function VehicleDetail() {
                 {prestarts.map((p) => (
                   <TableRow key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b dark:border-slate-700">
                     <TableCell>{format(new Date(p.prestart_datetime), "d MMM yyyy HH:mm")}</TableCell>
-                    <TableCell>{p.operator_name}</TableCell>
+                    <TableCell>{p.worker_name || p.operator_name}</TableCell>
                     <TableCell className="text-slate-600">{p.client_name || "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={p.overall_result === "Pass" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}>
