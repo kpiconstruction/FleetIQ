@@ -19,40 +19,56 @@ Deno.serve(async (req) => {
       providerFilter 
     } = body;
 
-    const startDate = new Date(dateRangeStart);
-    const endDate = new Date(dateRangeEnd);
+    const startDate = dateRangeStart;
+    const endDate = dateRangeEnd;
 
-    // Fetch data using service role
-    const [vehicles, downtimeEvents, hireProviders] = await Promise.all([
-      base44.asServiceRole.entities.Vehicle.list(),
-      base44.asServiceRole.entities.AssetDowntimeEvent.list('-start_datetime', 2000),
+    // Build vehicle filter query
+    const vehicleQuery = { status: "Active" };
+    if (stateFilter && stateFilter !== 'all') vehicleQuery.state = stateFilter;
+    if (functionClassFilter && functionClassFilter !== 'all') vehicleQuery.vehicle_function_class = functionClassFilter;
+    if (ownershipFilter && ownershipFilter !== 'all') vehicleQuery.ownership_type = ownershipFilter;
+    if (providerFilter && providerFilter !== 'all') vehicleQuery.hire_provider_id = providerFilter;
+
+    // Fetch only filtered vehicles and hire providers
+    const [filteredVehicles, hireProviders] = await Promise.all([
+      base44.asServiceRole.entities.Vehicle.filter(vehicleQuery),
       base44.asServiceRole.entities.HireProvider.list(),
     ]);
 
+    const filteredVehicleIds = filteredVehicles.map(v => v.id);
+
+    if (filteredVehicleIds.length === 0) {
+      return Response.json({
+        success: true,
+        byCauseCategory: {},
+        byFunctionClass: [],
+        byHireProvider: [],
+        byState: [],
+        summary: { total_downtime_hours: 0, total_events: 0, top_cause: 'None', top_function_class: 'None', top_hire_provider: 'None' },
+      });
+    }
+
+    // Fetch downtime events with filters - batch by vehicle IDs
+    const downtimePromises = [];
+    const batchSize = 50;
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        downtimePromises.push(
+          base44.asServiceRole.entities.AssetDowntimeEvent.filter({ vehicle_id: vehicleId })
+            .then(events => events.filter(d => d.start_datetime >= startDate && d.start_datetime <= endDate))
+        );
+      }
+    }
+    const downtimeBatches = await Promise.all(downtimePromises);
+    const periodDowntimeEvents = downtimeBatches.flat();
+
     // Create lookup maps
     const vehicleMap = {};
-    vehicles.forEach(v => vehicleMap[v.id] = v);
+    filteredVehicles.forEach(v => vehicleMap[v.id] = v);
 
     const providerMap = {};
     hireProviders.forEach(p => providerMap[p.id] = p);
-
-    // Filter vehicles
-    const filteredVehicles = vehicles.filter(v => {
-      if (stateFilter && stateFilter !== 'all' && v.state !== stateFilter) return false;
-      if (functionClassFilter && functionClassFilter !== 'all' && v.vehicle_function_class !== functionClassFilter) return false;
-      if (ownershipFilter && ownershipFilter !== 'all' && v.ownership_type !== ownershipFilter) return false;
-      if (providerFilter && providerFilter !== 'all' && v.hire_provider_id !== providerFilter) return false;
-      return true;
-    });
-
-    const filteredVehicleIds = new Set(filteredVehicles.map(v => v.id));
-
-    // Filter downtime events for period
-    const periodDowntimeEvents = downtimeEvents.filter(d => {
-      if (!filteredVehicleIds.has(d.vehicle_id)) return false;
-      const startDatetime = new Date(d.start_datetime);
-      return startDatetime >= startDate && startDatetime <= endDate;
-    });
 
     // Aggregate by cause_category
     const byCauseCategory = {};
