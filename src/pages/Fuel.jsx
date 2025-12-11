@@ -129,7 +129,7 @@ export default function Fuel() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 mb-6">
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -179,10 +179,10 @@ export default function Fuel() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50">
+              <TableRow className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-700">
                 <TableHead>Date/Time</TableHead>
                 <TableHead>Asset</TableHead>
                 <TableHead>Litres</TableHead>
@@ -197,7 +197,7 @@ export default function Fuel() {
               {filteredTransactions.map((f) => {
                 const vehicle = vehicleMap[f.vehicle_id];
                 return (
-                  <TableRow key={f.id} className="hover:bg-slate-50">
+                  <TableRow key={f.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700">
                     <TableCell className="font-medium">
                       {format(new Date(f.transaction_datetime), "d MMM yyyy HH:mm")}
                     </TableCell>
@@ -212,9 +212,9 @@ export default function Fuel() {
                     <TableCell>{f.litres?.toFixed(1)}L</TableCell>
                     <TableCell>${f.unit_price?.toFixed(3)}</TableCell>
                     <TableCell className="font-medium">${f.total_cost?.toFixed(2)}</TableCell>
-                    <TableCell className="text-slate-600 max-w-[200px] truncate">{f.site_location || "-"}</TableCell>
+                    <TableCell className="text-slate-600 dark:text-slate-300 max-w-[200px] truncate">{f.site_location || "-"}</TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                         {f.fuel_type || "-"}
                       </span>
                     </TableCell>
@@ -226,8 +226,8 @@ export default function Fuel() {
           </Table>
           {filteredTransactions.length === 0 && (
             <div className="p-12 text-center">
-              <FuelIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">No fuel transactions found</p>
+              <FuelIcon className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-500 dark:text-slate-400">No fuel transactions found</p>
             </div>
           )}
         </div>
