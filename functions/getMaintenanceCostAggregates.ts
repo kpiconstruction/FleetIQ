@@ -20,35 +20,44 @@ Deno.serve(async (req) => {
       repeatRepairThreshold = 3 
     } = body;
 
-    const startDate = new Date(dateRangeStart);
-    const endDate = new Date(dateRangeEnd);
-    const ninetyDaysAgo = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const startDate = dateRangeStart;
+    const endDate = dateRangeEnd;
+    const ninetyDaysAgo = new Date(new Date(endDate).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Fetch data using service role
-    const [vehicles, serviceRecords, usageRecords, workOrders] = await Promise.all([
-      base44.asServiceRole.entities.Vehicle.list(),
-      base44.asServiceRole.entities.ServiceRecord.list('-service_date', 2000),
-      base44.asServiceRole.entities.UsageRecord.list('-usage_date', 5000),
-      base44.asServiceRole.entities.MaintenanceWorkOrder.list('-raised_datetime', 1000),
-    ]);
+    // Build vehicle filter query
+    const vehicleQuery = { status: "Active" };
+    if (stateFilter && stateFilter !== 'all') vehicleQuery.state = stateFilter;
+    if (functionClassFilter && functionClassFilter !== 'all') vehicleQuery.vehicle_function_class = functionClassFilter;
+    if (ownershipFilter && ownershipFilter !== 'all') vehicleQuery.ownership_type = ownershipFilter;
+    if (providerFilter && providerFilter !== 'all') vehicleQuery.hire_provider_id = providerFilter;
 
-    // Filter vehicles
-    const filteredVehicles = vehicles.filter(v => {
-      if (stateFilter && stateFilter !== 'all' && v.state !== stateFilter) return false;
-      if (functionClassFilter && functionClassFilter !== 'all' && v.vehicle_function_class !== functionClassFilter) return false;
-      if (ownershipFilter && ownershipFilter !== 'all' && v.ownership_type !== ownershipFilter) return false;
-      if (providerFilter && providerFilter !== 'all' && v.hire_provider_id !== providerFilter) return false;
-      return true;
-    });
+    // Fetch only filtered vehicles
+    const filteredVehicles = await base44.asServiceRole.entities.Vehicle.filter(vehicleQuery);
+    const filteredVehicleIds = filteredVehicles.map(v => v.id);
 
-    const filteredVehicleIds = new Set(filteredVehicles.map(v => v.id));
+    if (filteredVehicleIds.length === 0) {
+      return Response.json({
+        success: true,
+        byClass: {},
+        assetAggregates: [],
+        summary: { total_cost: 0, total_assets: 0, repeat_repair_assets: 0 },
+      });
+    }
 
-    // Filter service records for period
-    const periodServiceRecords = serviceRecords.filter(s => {
-      if (!filteredVehicleIds.has(s.vehicle_id)) return false;
-      const serviceDate = new Date(s.service_date);
-      return serviceDate >= startDate && serviceDate <= endDate;
-    });
+    // Fetch service records with date filter - batch by vehicle IDs
+    const serviceRecordsPromises = [];
+    const batchSize = 50;
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        serviceRecordsPromises.push(
+          base44.asServiceRole.entities.ServiceRecord.filter({ vehicle_id: vehicleId })
+            .then(records => records.filter(s => s.service_date >= startDate && s.service_date <= endDate))
+        );
+      }
+    }
+    const serviceRecordsBatches = await Promise.all(serviceRecordsPromises);
+    const periodServiceRecords = serviceRecordsBatches.flat();
 
     // Aggregate by vehicle_function_class
     const byClass = {};
@@ -68,7 +77,7 @@ Deno.serve(async (req) => {
 
     // Process service records for class aggregates
     periodServiceRecords.forEach(s => {
-      const vehicle = vehicles.find(v => v.id === s.vehicle_id);
+      const vehicle = vehicleMap[s.vehicle_id];
       if (!vehicle) return;
       const fc = vehicle.vehicle_function_class || 'Unknown';
       if (!byClass[fc]) return;
@@ -77,15 +86,26 @@ Deno.serve(async (req) => {
       byClass[fc].serviceCount++;
     });
 
-    // Process usage records for class aggregates
-    const periodUsageRecords = usageRecords.filter(u => {
-      if (!filteredVehicleIds.has(u.vehicle_id)) return false;
-      const usageDate = new Date(u.usage_date);
-      return usageDate >= startDate && usageDate <= endDate;
-    });
+    // Fetch usage records with date filter - batch by vehicle IDs
+    const usageRecordsPromises = [];
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        usageRecordsPromises.push(
+          base44.asServiceRole.entities.UsageRecord.filter({ vehicle_id: vehicleId })
+            .then(records => records.filter(u => u.usage_date >= startDate && u.usage_date <= endDate))
+        );
+      }
+    }
+    const usageRecordsBatches = await Promise.all(usageRecordsPromises);
+    const periodUsageRecords = usageRecordsBatches.flat();
+
+    // Create vehicle lookup map
+    const vehicleMap = {};
+    filteredVehicles.forEach(v => vehicleMap[v.id] = v);
 
     periodUsageRecords.forEach(u => {
-      const vehicle = vehicles.find(v => v.id === u.vehicle_id);
+      const vehicle = vehicleMap[u.vehicle_id];
       if (!vehicle) return;
       const fc = vehicle.vehicle_function_class || 'Unknown';
       if (!byClass[fc]) return;
@@ -105,7 +125,7 @@ Deno.serve(async (req) => {
     // Aggregate by asset (for high-cost assets table)
     const assetAggregates = [];
 
-    filteredVehicles.forEach(vehicle => {
+    for (const vehicle of filteredVehicles) {
       const vehicleServices = periodServiceRecords.filter(s => s.vehicle_id === vehicle.id);
       const totalCost = vehicleServices.reduce((sum, s) => sum + (s.cost_ex_gst || 0), 0);
 
@@ -119,13 +139,14 @@ Deno.serve(async (req) => {
       const costPer1000Km = totalKm > 0 ? (totalCost / totalKm) * 1000 : 0;
       const costPerHour = totalHours > 0 ? totalCost / totalHours : 0;
 
-      // Check for repeat repairs (corrective/defect WOs in last 90 days)
-      const recentCorrectiveWOs = workOrders.filter(wo => {
-        if (wo.vehicle_id !== vehicle.id) return false;
-        if (wo.work_order_type !== 'Corrective' && wo.work_order_type !== 'DefectRepair') return false;
-        const raisedDate = new Date(wo.raised_datetime);
-        return raisedDate >= ninetyDaysAgo && raisedDate <= endDate;
-      });
+      // Check for repeat repairs (corrective/defect WOs in last 90 days) - fetch only for this vehicle
+      const recentCorrectiveWOs = await base44.asServiceRole.entities.MaintenanceWorkOrder.filter({
+        vehicle_id: vehicle.id,
+      }).then(wos => wos.filter(wo => 
+        (wo.work_order_type === 'Corrective' || wo.work_order_type === 'DefectRepair') &&
+        wo.raised_datetime >= ninetyDaysAgo &&
+        wo.raised_datetime <= endDate
+      ));
 
       const repeatRepairFlag = recentCorrectiveWOs.length >= repeatRepairThreshold;
 
@@ -144,7 +165,7 @@ Deno.serve(async (req) => {
         repeat_repair_flag: repeatRepairFlag,
         repeat_repair_count: recentCorrectiveWOs.length,
       });
-    });
+    }
 
     // Sort by total cost descending
     assetAggregates.sort((a, b) => b.total_cost - a.total_cost);
