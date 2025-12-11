@@ -15,6 +15,13 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, CheckCircle, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function WorkOrderCompletionDialog({
   open,
@@ -29,6 +36,15 @@ export default function WorkOrderCompletionDialog({
     workOrder?.confirmed_downtime_hours || ""
   );
   const [completionNotes, setCompletionNotes] = useState(workOrder?.completion_notes || "");
+  const [costChargeableTo, setCostChargeableTo] = useState(() => {
+    // Default logic based on vehicle ownership and work order type
+    if (vehicle?.ownership_type === "Owned") return "KPI";
+    if ((vehicle?.ownership_type === "ContractHire" || vehicle?.ownership_type === "DayHire") && 
+        workOrder?.work_order_type === "Scheduled") {
+      return "HireProvider";
+    }
+    return workOrder?.work_order_type === "Scheduled" ? "HireProvider" : "KPI";
+  });
   const [validationError, setValidationError] = useState("");
 
   const { data: user } = useQuery({
@@ -101,6 +117,9 @@ export default function WorkOrderCompletionDialog({
         updateData.completion_confirmed_by_user_id = user.id;
         updateData.completion_confirmed_at = new Date().toISOString();
       }
+
+      // Add cost_chargeable_to for service record creation
+      updateData.cost_chargeable_to = costChargeableTo;
 
       onComplete(updateData);
     } catch (error) {
@@ -201,6 +220,36 @@ export default function WorkOrderCompletionDialog({
               </div>
             </div>
           )}
+
+          {/* Cost Chargeable To */}
+          <div className="space-y-2">
+            <Label>Cost Chargeable To</Label>
+            <Select
+              value={costChargeableTo}
+              onValueChange={setCostChargeableTo}
+              disabled={isOwned || (isHire && workOrder.work_order_type === "Scheduled")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="KPI">KPI</SelectItem>
+                <SelectItem value="HireProvider">Hire Provider</SelectItem>
+                <SelectItem value="Client">Client</SelectItem>
+                <SelectItem value="Shared">Shared</SelectItem>
+              </SelectContent>
+            </Select>
+            {isHire && workOrder.work_order_type === "Scheduled" && (
+              <p className="text-xs text-violet-600 dark:text-violet-400">
+                Scheduled hire fleet services are charged to the provider
+              </p>
+            )}
+            {isHire && (workOrder.work_order_type === "Corrective" || workOrder.work_order_type === "DefectRepair") && (
+              <p className="text-xs text-slate-500">
+                Set this to KPI only if our driver/operations caused the damage. HireProvider means it's covered by the provider's agreement.
+              </p>
+            )}
+          </div>
 
           {/* Completion Notes */}
           <div className="space-y-2">

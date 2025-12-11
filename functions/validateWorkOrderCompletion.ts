@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { work_order_id, status, purchase_order_number, confirmed_downtime_hours, completion_notes } = await req.json();
+    const { work_order_id, status, purchase_order_number, confirmed_downtime_hours, completion_notes, cost_chargeable_to } = await req.json();
 
     // Only validate when changing to Completed
     if (status !== 'Completed') {
@@ -41,7 +41,11 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
       // Valid for owned fleet
-      return Response.json({ valid: true, ownership_type: ownershipType });
+      return Response.json({ 
+        valid: true, 
+        ownership_type: ownershipType,
+        cost_chargeable_to: cost_chargeable_to || 'KPI'
+      });
     }
 
     // Rule 2: Hire Fleet - Confirmation + Downtime Required
@@ -68,11 +72,15 @@ Deno.serve(async (req) => {
       }
 
       // Valid for hire fleet
+      // Validate cost_chargeable_to for hire fleet
+      const finalCostChargeableTo = cost_chargeable_to || (workOrder.work_order_type === 'Scheduled' ? 'HireProvider' : 'KPI');
+      
       return Response.json({ 
         valid: true, 
         ownership_type: ownershipType,
         confirmed_by: user.id,
-        confirmed_at: new Date().toISOString()
+        confirmed_at: new Date().toISOString(),
+        cost_chargeable_to: finalCostChargeableTo
       });
     }
 

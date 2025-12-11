@@ -82,7 +82,11 @@ Deno.serve(async (req) => {
       const fc = vehicle.vehicle_function_class || 'Unknown';
       if (!byClass[fc]) return;
 
-      byClass[fc].totalCost += s.cost_ex_gst || 0;
+      // Only include costs chargeable to KPI (exclude HireProvider-paid services)
+      const costChargeableTo = s.cost_chargeable_to || 'KPI';
+      if (costChargeableTo !== 'HireProvider') {
+        byClass[fc].totalCost += s.cost_ex_gst || 0;
+      }
       byClass[fc].serviceCount++;
     });
 
@@ -127,10 +131,15 @@ Deno.serve(async (req) => {
 
     for (const vehicle of filteredVehicles) {
       const vehicleServices = periodServiceRecords.filter(s => s.vehicle_id === vehicle.id);
-      const totalCost = vehicleServices.reduce((sum, s) => sum + (s.cost_ex_gst || 0), 0);
+      
+      // Only include costs chargeable to KPI (exclude HireProvider-paid services)
+      const totalCost = vehicleServices.reduce((sum, s) => {
+        const costChargeableTo = s.cost_chargeable_to || 'KPI';
+        return sum + (costChargeableTo !== 'HireProvider' ? (s.cost_ex_gst || 0) : 0);
+      }, 0);
 
       // Only include assets with cost > 0
-      if (totalCost === 0) return;
+      if (totalCost === 0) continue;
 
       const vehicleUsage = periodUsageRecords.filter(u => u.vehicle_id === vehicle.id);
       const totalKm = vehicleUsage.reduce((sum, u) => sum + (u.km_travelled || 0), 0);
