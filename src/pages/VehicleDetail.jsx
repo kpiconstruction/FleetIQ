@@ -676,33 +676,35 @@ export default function VehicleDetail() {
                         </TableCell>
                         <TableCell className="font-medium">{template?.name || "Ad-hoc"}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className={
-                                wo.status === "Completed"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : wo.status === "InProgress"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : wo.status === "Cancelled"
-                                  ? "bg-slate-100 text-slate-600 border-slate-200"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
-                              }
-                            >
-                              {wo.status}
-                            </Badge>
-                            {wo.linked_prestart_defect_id && (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                                Defect
-                              </Badge>
-                            )}
-                            {wo.linked_incident_id && (
-                              <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 text-xs">
-                                Incident
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    wo.status === "Completed"
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                      : wo.status === "InProgress"
+                                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                                      : wo.status === "Cancelled"
+                                      ? "bg-slate-100 text-slate-600 border-slate-200"
+                                      : "bg-amber-50 text-amber-700 border-amber-200"
+                                  }
+                                >
+                                  {wo.status}
+                                </Badge>
+                                {wo.linked_prestart_defect_id && (
+                                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                    Defect
+                                  </Badge>
+                                )}
+                                {wo.linked_incident_id && (
+                                  <Link to={createPageUrl(`IncidentDetail?id=${wo.linked_incident_id}`)}>
+                                    <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 text-xs cursor-pointer hover:bg-rose-100">
+                                      Incident
+                                    </Badge>
+                                  </Link>
+                                )}
+                              </div>
+                            </TableCell>
                         <TableCell>
                           {wo.status === "Completed" ? (
                               vehicle.ownership_type === "Owned" ? (
