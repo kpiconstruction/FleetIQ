@@ -108,13 +108,105 @@ export default function AutomationControl() {
         )}
       </div>
 
-      <Tabs defaultValue="workorders" className="space-y-6">
+      {/* Migration Mode Alert */}
+      {getConfigValue("MIGRATION_MODE_ENABLED", false) && (
+        <Alert className="bg-amber-50 border-amber-500 border-2 mb-6">
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
+          <AlertDescription className="text-amber-900">
+            <strong className="font-bold text-lg">⚠️ MIGRATION MODE ACTIVE</strong>
+            <p className="mt-2">All data mutation automations are disabled. Fleet IQ will not automatically create work orders, import data, or modify maintenance records. Dashboards and exports remain available.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="migration" className="space-y-6">
         <TabsList className="bg-slate-100 p-1 rounded-xl">
+          <TabsTrigger value="migration">Migration Mode</TabsTrigger>
           <TabsTrigger value="workorders">Work Order Automation</TabsTrigger>
           <TabsTrigger value="alerting">Alerting</TabsTrigger>
           <TabsTrigger value="reporting">Reporting</TabsTrigger>
           <TabsTrigger value="logs">Alert Logs</TabsTrigger>
         </TabsList>
+
+        {/* Migration Mode Tab */}
+        <TabsContent value="migration">
+          <Card className="border-2 border-amber-400">
+            <CardHeader className="bg-amber-50">
+              <CardTitle className="flex items-center gap-2 text-amber-900">
+                <AlertTriangle className="w-6 h-6" />
+                Fleet IQ Migration Mode
+              </CardTitle>
+              <CardDescription className="text-amber-800">
+                Safely wind down automations before Trae cutover
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div className="p-4 bg-slate-50 rounded-lg space-y-3">
+                <h3 className="font-semibold text-slate-900">What happens when Migration Mode is enabled?</h3>
+                <ul className="space-y-2 text-sm text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-rose-600 font-bold">✖</span>
+                    <span>All automatic work order creation is <strong>stopped</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-rose-600 font-bold">✖</span>
+                    <span>Auto-commit of imported service data is <strong>disabled</strong> (draft mode only)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-rose-600 font-bold">✖</span>
+                    <span>Automated data mutation jobs are <strong>suspended</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>Dashboards, reports, and aggregates <strong>continue working</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>Export APIs for Trae migration remain <strong>available</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-emerald-600 font-bold">✓</span>
+                    <span>Manual operations via UI are <strong>still allowed</strong></span>
+                  </li>
+                </ul>
+              </div>
+
+              <Alert className="bg-rose-50 border-rose-200">
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                <AlertDescription className="text-rose-800">
+                  <strong>Important:</strong> Only enable Migration Mode when you're ready to transition to Trae. This prevents Base44 from creating conflicting records during the cutover period.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-lg">
+                <div>
+                  <Label htmlFor="migration-mode" className="text-lg font-semibold">
+                    Enable Migration Mode
+                  </Label>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {getConfigValue("MIGRATION_MODE_ENABLED", false) 
+                      ? "Migration Mode is currently ACTIVE - automations are disabled"
+                      : "Migration Mode is currently OFF - automations are running normally"}
+                  </p>
+                </div>
+                <Switch
+                  id="migration-mode"
+                  checked={getConfigValue("MIGRATION_MODE_ENABLED", false)}
+                  onCheckedChange={(checked) =>
+                    handleSaveConfig(
+                      "MIGRATION_MODE_ENABLED",
+                      checked,
+                      "boolean",
+                      "Enable Migration Mode to safely wind down automations before Trae cutover",
+                      "DataIngestion"
+                    )
+                  }
+                  className="data-[state=checked]:bg-amber-600"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Work Order Automation Tab */}
         <TabsContent value="workorders">

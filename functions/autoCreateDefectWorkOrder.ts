@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { logAutomationRun, isAutomationEnabled } from './services/fleetLogger.js';
 
 Deno.serve(async (req) => {
   try {
@@ -10,10 +11,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'defect_id is required' }, { status: 400 });
     }
 
+    // Check if Migration Mode is enabled
+    const migrationMode = await isAutomationEnabled(base44, 'MIGRATION_MODE_ENABLED');
+    if (migrationMode) {
+      console.log('[autoCreateDefectWorkOrder] Skipped - Migration Mode active');
+      return Response.json({
+        success: true,
+        message: 'Migration Mode active - automation disabled',
+        created: false,
+      });
+    }
+
     // Check if automation is enabled
-    const configs = await base44.asServiceRole.entities.AutomationConfig.filter({ key: 'AUTO_WO_FROM_DEFECTS_ENABLED' });
-    const enabled = configs.length > 0 ? configs[0].value === 'true' : true;
-    
+    const enabled = await isAutomationEnabled(base44, 'AUTO_WO_FROM_DEFECTS_ENABLED');
     if (!enabled) {
       return Response.json({ 
         success: true, 
@@ -77,6 +87,12 @@ Deno.serve(async (req) => {
 
     const newWO = await base44.asServiceRole.entities.MaintenanceWorkOrder.create(woData);
 
+    await logAutomationRun(base44, 'autoCreateDefectWorkOrder', 'Success', {
+      created: 1,
+      defect_id,
+      work_order_id: newWO.id,
+    });
+
     return Response.json({
       success: true,
       created: true,
@@ -87,6 +103,12 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Auto create defect work order error:', error);
+    
+    const base44 = createClientFromRequest(req);
+    await logAutomationRun(base44, 'autoCreateDefectWorkOrder', 'Failed', {
+      error: error.message,
+    });
+    
     return Response.json({ 
       success: false, 
       error: error.message 

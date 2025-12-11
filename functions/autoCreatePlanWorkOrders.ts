@@ -5,10 +5,23 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     
-    // Check if automation is enabled
-    const configs = await base44.asServiceRole.entities.AutomationConfig.filter({ key: 'AUTO_WO_FROM_PLANS_ENABLED' });
-    const enabled = configs.length > 0 ? configs[0].value === 'true' : true;
+    // Check if Migration Mode is enabled
+    const migrationMode = await isAutomationEnabled(base44, 'MIGRATION_MODE_ENABLED');
+    if (migrationMode) {
+      console.log('[autoCreatePlanWorkOrders] Skipped - Migration Mode active');
+      await logAutomationRun(base44, 'autoCreatePlanWorkOrders', 'Success', {
+        message: 'Migration Mode active - no records created',
+        created: 0,
+      });
+      return Response.json({
+        success: true,
+        message: 'Migration Mode active - automation disabled',
+        created: 0,
+      });
+    }
     
+    // Check if automation is enabled
+    const enabled = await isAutomationEnabled(base44, 'AUTO_WO_FROM_PLANS_ENABLED');
     if (!enabled) {
       return Response.json({ 
         success: true, 
@@ -77,6 +90,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    await logAutomationRun(base44, 'autoCreatePlanWorkOrders', 'Success', {
+      created: created.length,
+      threshold_days: dueThresholdDays,
+    });
+
     return Response.json({
       success: true,
       created_count: created.length,
@@ -86,6 +104,12 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Auto create plan work orders error:', error);
+    
+    const base44 = createClientFromRequest(req);
+    await logAutomationRun(base44, 'autoCreatePlanWorkOrders', 'Failed', {
+      error: error.message,
+    });
+    
     return Response.json({ 
       success: false, 
       error: error.message 

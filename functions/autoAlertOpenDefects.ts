@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { logAutomationRun, logAlertSend } from './services/fleetLogger.js';
 
 Deno.serve(async (req) => {
   try {
@@ -127,6 +128,10 @@ KPI Fleet IQ Automated Alert
       }
     }
 
+    await logAutomationRun(base44, 'autoAlertOpenDefects', 'Success', {
+      alerts_sent: alertsSent.length,
+    });
+
     return Response.json({
       success: true,
       alerts_sent: alertsSent.length,
@@ -135,6 +140,12 @@ KPI Fleet IQ Automated Alert
 
   } catch (error) {
     console.error('Auto alert open defects error:', error);
+    
+    const base44 = createClientFromRequest(req);
+    await logAutomationRun(base44, 'autoAlertOpenDefects', 'Failed', {
+      error: error.message,
+    });
+    
     return Response.json({ 
       success: false, 
       error: error.message 
