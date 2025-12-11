@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { getBestOdometerSnapshot } from './services/odometerSnapshot.js';
+import { getCached, setCached } from './services/aggregateCache.js';
 
 /**
  * Computes derived scheduling fields for a MaintenancePlan
@@ -113,10 +114,26 @@ Deno.serve(async (req) => {
       statusFilter 
     } = body;
 
-    // Fetch all required data
+    // Check cache first
+    const cacheKey = { dateRangeStart, dateRangeEnd, stateFilter, functionClassFilter, ownershipFilter, providerFilter, statusFilter };
+    const cached = getCached('getMaintenancePlanSchedule', cacheKey);
+    if (cached) {
+      return Response.json(cached);
+    }
+
+    // Build vehicle filter query to reduce data fetched
+    const vehicleQuery = {};
+    if (stateFilter && stateFilter !== 'all') vehicleQuery.state = stateFilter;
+    if (functionClassFilter && functionClassFilter !== 'all') vehicleQuery.vehicle_function_class = functionClassFilter;
+    if (ownershipFilter && ownershipFilter !== 'all') vehicleQuery.ownership_type = ownershipFilter;
+    if (providerFilter && providerFilter !== 'all') vehicleQuery.hire_provider_id = providerFilter;
+
+    // Fetch filtered data
     const [vehicles, maintenancePlans, maintenanceTemplates] = await Promise.all([
-      base44.asServiceRole.entities.Vehicle.list(),
-      base44.asServiceRole.entities.MaintenancePlan.list(),
+      Object.keys(vehicleQuery).length > 0 
+        ? base44.asServiceRole.entities.Vehicle.filter(vehicleQuery)
+        : base44.asServiceRole.entities.Vehicle.list(),
+      base44.asServiceRole.entities.MaintenancePlan.filter({ status: 'Active' }),
       base44.asServiceRole.entities.MaintenanceTemplate.list(),
     ]);
 
@@ -205,12 +222,17 @@ Deno.serve(async (req) => {
       hvnl_critical_overdue: enrichedPlans.filter(p => p.is_overdue && p.is_hvnl_critical).length,
     };
 
-    return Response.json({
+    const result = {
       success: true,
       plans: enrichedPlans,
       summary,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Cache for 3 minutes
+    setCached('getMaintenancePlanSchedule', cacheKey, result, 3 * 60 * 1000);
+
+    return Response.json(result);
 
   } catch (error) {
     console.error('Maintenance plan schedule error:', error);
