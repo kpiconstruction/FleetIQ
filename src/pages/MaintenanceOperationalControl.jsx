@@ -633,9 +633,11 @@ export default function MaintenanceOperationalControl() {
                               {wo.status}
                             </Badge>
                             {wo.linked_prestart_defect_id && (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                                Defect
-                              </Badge>
+                              <Link to={createPageUrl(`PrestartDefectDetail?id=${wo.linked_prestart_defect_id}`)}>
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs cursor-pointer hover:bg-amber-100">
+                                  Defect
+                                </Badge>
+                              </Link>
                             )}
                             {wo.linked_incident_id && (
                               <Link to={createPageUrl(`IncidentDetail?id=${wo.linked_incident_id}`)}>

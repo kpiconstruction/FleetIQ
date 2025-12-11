@@ -24,6 +24,7 @@ import NotificationSettings from './pages/NotificationSettings';
 import IncidentDetail from './pages/IncidentDetail';
 import AutomationControl from './pages/AutomationControl';
 import FuelImport from './pages/FuelImport';
+import PrestartDefectDetail from './pages/PrestartDefectDetail';
 import __Layout from './Layout.jsx';
 
 
@@ -54,6 +55,7 @@ export const PAGES = {
     "IncidentDetail": IncidentDetail,
     "AutomationControl": AutomationControl,
     "FuelImport": FuelImport,
+    "PrestartDefectDetail": PrestartDefectDetail,
 }
 
 export const pagesConfig = {
