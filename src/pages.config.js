@@ -15,6 +15,7 @@ import Contracts from './pages/Contracts';
 import WorkerRiskProfile from './pages/WorkerRiskProfile';
 import HighRiskWorkers from './pages/HighRiskWorkers';
 import MaintenancePlanner from './pages/MaintenancePlanner';
+import MaintenanceOverview from './pages/MaintenanceOverview';
 import __Layout from './Layout.jsx';
 
 
@@ -36,6 +37,7 @@ export const PAGES = {
     "WorkerRiskProfile": WorkerRiskProfile,
     "HighRiskWorkers": HighRiskWorkers,
     "MaintenancePlanner": MaintenancePlanner,
+    "MaintenanceOverview": MaintenanceOverview,
 }
 
 export const pagesConfig = {
