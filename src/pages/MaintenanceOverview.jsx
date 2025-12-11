@@ -38,6 +38,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import HvnlRiskLeaderboard from "../components/maintenance/HvnlRiskLeaderboard";
 
 export default function MaintenanceOverview() {
   const [filters, setFilters] = useState({
@@ -763,6 +764,11 @@ export default function MaintenanceOverview() {
             <Bar yAxisId="right" dataKey="costPer1000Km" fill="#f59e0b" name="Cost per 1,000 km ($)" />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* HVNL Risk Leaderboard */}
+      <div className="mt-6">
+        <HvnlRiskLeaderboard limit={15} />
       </div>
     </div>
   );
