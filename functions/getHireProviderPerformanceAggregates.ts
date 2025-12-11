@@ -20,40 +20,42 @@ Deno.serve(async (req) => {
       downtimeCauseCategory
     } = body;
 
-    const startDate = new Date(dateRangeStart);
-    const endDate = new Date(dateRangeEnd);
-    const ninetyDaysAgo = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const startDate = dateRangeStart;
+    const endDate = dateRangeEnd;
+    const ninetyDaysAgo = new Date(new Date(endDate).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Fetch all required data
-    const [vehicles, hireProviders, downtimeEvents, workOrders, serviceRecords, maintenancePlans, maintenanceTemplates] = await Promise.all([
-      base44.asServiceRole.entities.Vehicle.list(),
+    // Build vehicle filter query
+    const vehicleQuery = { status: "Active" };
+    if (stateFilter && stateFilter !== 'all') vehicleQuery.state = stateFilter;
+    if (functionClassFilter && functionClassFilter !== 'all') vehicleQuery.vehicle_function_class = functionClassFilter;
+    if (providerFilter && providerFilter !== 'all') vehicleQuery.hire_provider_id = providerFilter;
+
+    // Fetch filtered vehicles, providers, and templates
+    const [filteredVehicles, hireProviders, maintenanceTemplates] = await Promise.all([
+      base44.asServiceRole.entities.Vehicle.filter(vehicleQuery),
       base44.asServiceRole.entities.HireProvider.list(),
-      base44.asServiceRole.entities.AssetDowntimeEvent.list('-start_datetime', 2000),
-      base44.asServiceRole.entities.MaintenanceWorkOrder.list('-raised_datetime', 2000),
-      base44.asServiceRole.entities.ServiceRecord.list('-service_date', 2000),
-      base44.asServiceRole.entities.MaintenancePlan.list(),
       base44.asServiceRole.entities.MaintenanceTemplate.list(),
     ]);
 
+    const filteredVehicleIds = filteredVehicles.map(v => v.id);
+
+    if (filteredVehicleIds.length === 0) {
+      return Response.json({
+        success: true,
+        providers: [],
+        summary: { total_downtime_hours: 0, total_providers: 0, high_risk_providers: 0, total_hvnl_overdue: 0, total_service_cost: 0, avg_on_time_rate: 0 },
+      });
+    }
+
     // Create lookup maps
     const vehicleMap = {};
-    vehicles.forEach(v => vehicleMap[v.id] = v);
+    filteredVehicles.forEach(v => vehicleMap[v.id] = v);
 
     const providerMap = {};
     hireProviders.forEach(p => providerMap[p.id] = p);
 
     const templateMap = {};
     maintenanceTemplates.forEach(t => templateMap[t.id] = t);
-
-    // Filter vehicles
-    const filteredVehicles = vehicles.filter(v => {
-      if (stateFilter && stateFilter !== 'all' && v.state !== stateFilter) return false;
-      if (functionClassFilter && functionClassFilter !== 'all' && v.vehicle_function_class !== functionClassFilter) return false;
-      if (providerFilter && providerFilter !== 'all' && v.hire_provider_id !== providerFilter) return false;
-      return true;
-    });
-
-    const filteredVehicleIds = new Set(filteredVehicles.map(v => v.id));
 
     // Aggregate by provider
     const providerAggregates = {};
@@ -87,14 +89,24 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Process downtime events
-    const periodDowntimeEvents = downtimeEvents.filter(d => {
-      if (!filteredVehicleIds.has(d.vehicle_id)) return false;
-      const startDatetime = new Date(d.start_datetime);
-      if (startDatetime < startDate || startDatetime > endDate) return false;
-      if (downtimeCauseCategory && downtimeCauseCategory !== 'all' && d.cause_category !== downtimeCauseCategory) return false;
-      return true;
-    });
+    // Fetch downtime events with filters - batch by vehicle IDs
+    const downtimePromises = [];
+    const batchSize = 50;
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        downtimePromises.push(
+          base44.asServiceRole.entities.AssetDowntimeEvent.filter({ vehicle_id: vehicleId })
+            .then(events => events.filter(d => {
+              if (d.start_datetime < startDate || d.start_datetime > endDate) return false;
+              if (downtimeCauseCategory && downtimeCauseCategory !== 'all' && d.cause_category !== downtimeCauseCategory) return false;
+              return true;
+            }))
+        );
+      }
+    }
+    const downtimeBatches = await Promise.all(downtimePromises);
+    const periodDowntimeEvents = downtimeBatches.flat();
 
     periodDowntimeEvents.forEach(d => {
       const vehicle = vehicleMap[d.vehicle_id];
@@ -111,12 +123,30 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Process work orders
-    const periodWorkOrders = workOrders.filter(wo => {
-      if (!filteredVehicleIds.has(wo.vehicle_id)) return false;
-      const raisedDate = new Date(wo.raised_datetime);
-      return raisedDate >= startDate && raisedDate <= endDate;
-    });
+    // Fetch work orders with filters - batch by vehicle IDs
+    const workOrderPromises = [];
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        workOrderPromises.push(
+          base44.asServiceRole.entities.MaintenanceWorkOrder.filter({ vehicle_id: vehicleId })
+            .then(wos => wos.filter(wo => wo.raised_datetime >= startDate && wo.raised_datetime <= endDate))
+        );
+      }
+    }
+    const workOrderBatches = await Promise.all(workOrderPromises);
+    const periodWorkOrders = workOrderBatches.flat();
+
+    // Fetch service records for work order completion checks
+    const serviceRecordIds = periodWorkOrders
+      .filter(wo => wo.linked_service_record_id)
+      .map(wo => wo.linked_service_record_id);
+    
+    const serviceRecordsPromises = serviceRecordIds.map(id => 
+      base44.asServiceRole.entities.ServiceRecord.filter({ id })
+    );
+    const serviceRecordsBatches = await Promise.all(serviceRecordsPromises);
+    const serviceRecords = serviceRecordsBatches.flat();
 
     periodWorkOrders.forEach(wo => {
       const providerId = wo.assigned_to_hire_provider_id;
@@ -145,12 +175,19 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Process service records for cost
-    const periodServiceRecords = serviceRecords.filter(s => {
-      if (!filteredVehicleIds.has(s.vehicle_id)) return false;
-      const serviceDate = new Date(s.service_date);
-      return serviceDate >= startDate && serviceDate <= endDate;
-    });
+    // Fetch all service records for cost - batch by vehicle IDs
+    const allServicePromises = [];
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        allServicePromises.push(
+          base44.asServiceRole.entities.ServiceRecord.filter({ vehicle_id: vehicleId })
+            .then(records => records.filter(s => s.service_date >= startDate && s.service_date <= endDate))
+        );
+      }
+    }
+    const allServiceBatches = await Promise.all(allServicePromises);
+    const periodServiceRecords = allServiceBatches.flat();
 
     periodServiceRecords.forEach(s => {
       const providerId = s.hire_provider_id;
@@ -160,12 +197,22 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Process maintenance plans for HVNL exposure
+    // Fetch maintenance plans for HVNL exposure - batch by vehicle IDs
+    const planPromises = [];
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        planPromises.push(
+          base44.asServiceRole.entities.MaintenancePlan.filter({ vehicle_id: vehicleId, status: "Active" })
+        );
+      }
+    }
+    const planBatches = await Promise.all(planPromises);
+    const maintenancePlans = planBatches.flat();
+
     maintenancePlans.forEach(plan => {
-      if (plan.status !== 'Active') return;
-      
       const vehicle = vehicleMap[plan.vehicle_id];
-      if (!vehicle || !filteredVehicleIds.has(vehicle.id)) return;
+      if (!vehicle) return;
       
       const providerId = vehicle.hire_provider_id;
       if (!providerId || !providerAggregates[providerId]) return;
@@ -194,11 +241,19 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Check for repeat defects (corrective/defect WOs on same asset within 90 days)
-    const recentWorkOrders = workOrders.filter(wo => {
-      const raisedDate = new Date(wo.raised_datetime);
-      return raisedDate >= ninetyDaysAgo && raisedDate <= endDate;
-    });
+    // Fetch recent work orders for repeat defect analysis - batch by vehicle IDs
+    const recentWOPromises = [];
+    for (let i = 0; i < filteredVehicleIds.length; i += batchSize) {
+      const batch = filteredVehicleIds.slice(i, i + batchSize);
+      for (const vehicleId of batch) {
+        recentWOPromises.push(
+          base44.asServiceRole.entities.MaintenanceWorkOrder.filter({ vehicle_id: vehicleId })
+            .then(wos => wos.filter(wo => wo.raised_datetime >= ninetyDaysAgo && wo.raised_datetime <= endDate))
+        );
+      }
+    }
+    const recentWOBatches = await Promise.all(recentWOPromises);
+    const recentWorkOrders = recentWOBatches.flat();
 
     const assetRepairCount = {};
     recentWorkOrders.forEach(wo => {
