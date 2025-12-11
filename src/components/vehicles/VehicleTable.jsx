@@ -69,10 +69,11 @@ export default function VehicleTable({ vehicles, hireProviders }) {
             <TableHead className="font-semibold">Asset Code</TableHead>
             <TableHead className="font-semibold">Rego</TableHead>
             <TableHead className="font-semibold">Type</TableHead>
+            <TableHead className="font-semibold">Func Class</TableHead>
+            <TableHead className="font-semibold">TMA Variant</TableHead>
             <TableHead className="font-semibold">State</TableHead>
             <TableHead className="font-semibold">Ownership</TableHead>
-            <TableHead className="font-semibold">Hire Provider</TableHead>
-            <TableHead className="font-semibold">Status</TableHead>
+            <TableHead className="font-semibold">Assignar</TableHead>
             <TableHead className="font-semibold text-center">Prestart</TableHead>
             <TableHead className="font-semibold">Last Service</TableHead>
             <TableHead className="font-semibold">Next Service</TableHead>
@@ -92,12 +93,21 @@ export default function VehicleTable({ vehicles, hireProviders }) {
                   {vehicle.asset_type}
                 </span>
               </TableCell>
+              <TableCell>
+                <span className="text-sm text-slate-600">{vehicle.vehicle_function_class || "-"}</span>
+              </TableCell>
+              <TableCell>
+                <span className="text-sm text-slate-600">{vehicle.tma_variant || "-"}</span>
+              </TableCell>
               <TableCell className="font-medium">{vehicle.state}</TableCell>
               <TableCell>{getOwnershipBadge(vehicle.ownership_type)}</TableCell>
-              <TableCell className="text-slate-600">
-                {vehicle.ownership_type !== "Owned" ? getProviderName(vehicle.hire_provider_id) : "-"}
+              <TableCell className="text-center">
+                {vehicle.assignar_tracked ? (
+                  <CheckCircle className="w-4 h-4 text-emerald-500 inline" />
+                ) : (
+                  <span className="text-slate-400">-</span>
+                )}
               </TableCell>
-              <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
               <TableCell className="text-center">{getPrestartIcon(vehicle.last_prestart_result)}</TableCell>
               <TableCell className="text-slate-600">
                 {vehicle.last_service_date ? format(new Date(vehicle.last_service_date), "d MMM yyyy") : "-"}

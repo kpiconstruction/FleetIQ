@@ -28,11 +28,13 @@ import FleetUtilisationChart from "../components/dashboard/FleetUtilisationChart
 import DowntimeByCauseChart from "../components/dashboard/DowntimeByCauseChart";
 import ProblemAssetsTable from "../components/dashboard/ProblemAssetsTable";
 import StandDownSummary from "../components/dashboard/StandDownSummary";
+import FleetByFunctionChart from "../components/dashboard/FleetByFunctionChart";
 
 export default function Dashboard() {
   const [stateFilter, setStateFilter] = useState("All");
   const [assetTypeFilter, setAssetTypeFilter] = useState("all");
   const [ownershipFilter, setOwnershipFilter] = useState("all");
+  const [functionClassFilter, setFunctionClassFilter] = useState("all");
 
   const { data: vehicles = [], isLoading: vehiclesLoading, refetch: refetchVehicles } = useQuery({
     queryKey: ["vehicles"],
@@ -69,9 +71,10 @@ export default function Dashboard() {
       if (stateFilter !== "All" && v.state !== stateFilter) return false;
       if (assetTypeFilter !== "all" && v.asset_type !== assetTypeFilter) return false;
       if (ownershipFilter !== "all" && v.ownership_type !== ownershipFilter) return false;
+      if (functionClassFilter !== "all" && v.vehicle_function_class !== functionClassFilter) return false;
       return true;
     });
-  }, [vehicles, stateFilter, assetTypeFilter, ownershipFilter]);
+  }, [vehicles, stateFilter, assetTypeFilter, ownershipFilter, functionClassFilter]);
 
   const vehicleIds = useMemo(() => new Set(filteredVehicles.map(v => v.id)), [filteredVehicles]);
 
@@ -82,8 +85,13 @@ export default function Dashboard() {
 
   const thirtyDaysAgo = subDays(new Date(), 30);
   
+  // Exclude non-Assignar-tracked vehicles from prestart compliance
+  const assignarTrackedVehicleIds = useMemo(() => {
+    return new Set(filteredVehicles.filter(v => v.assignar_tracked !== false).map(v => v.id));
+  }, [filteredVehicles]);
+
   const recentPrestarts = prestarts.filter((p) => {
-    if (!vehicleIds.has(p.vehicle_id)) return false;
+    if (!assignarTrackedVehicleIds.has(p.vehicle_id)) return false;
     return new Date(p.prestart_datetime) >= thirtyDaysAgo;
   });
   
@@ -151,6 +159,16 @@ export default function Dashboard() {
       .slice(0, 10);
   }, [filteredVehicles, recentDowntime]);
 
+  // Fleet by functional class breakdown
+  const fleetByFunction = useMemo(() => {
+    const breakdown = {};
+    filteredVehicles.forEach((v) => {
+      const funcClass = v.vehicle_function_class || "Unknown";
+      breakdown[funcClass] = (breakdown[funcClass] || 0) + 1;
+    });
+    return breakdown;
+  }, [filteredVehicles]);
+
   const isLoading = vehiclesLoading || prestartsLoading || fuelLoading || downtimeLoading;
 
   const handleRefresh = () => {
@@ -205,6 +223,21 @@ export default function Dashboard() {
                 <SelectItem value="Owned">Owned</SelectItem>
                 <SelectItem value="ContractHire">Contract Hire</SelectItem>
                 <SelectItem value="DayHire">Day Hire</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={functionClassFilter} onValueChange={setFunctionClassFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Func Class" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                <SelectItem value="CorporateCar">Corporate Car</SelectItem>
+                <SelectItem value="TrafficUte">Traffic Ute</SelectItem>
+                <SelectItem value="VMSUte">VMS Ute</SelectItem>
+                <SelectItem value="PodTruckCar">Pod Truck Car</SelectItem>
+                <SelectItem value="PodTruckTruck">Pod Truck Truck</SelectItem>
+                <SelectItem value="TMA">TMA</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -264,17 +297,19 @@ export default function Dashboard() {
       )}
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
-          <FleetUtilisationChart data={utilisationData} />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <FleetUtilisationChart data={utilisationData} />
+        <FleetByFunctionChart data={fleetByFunction} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <DowntimeByCauseChart data={downtimeByCause.length > 0 ? downtimeByCause : [{ name: "No Data", value: 1 }]} />
+        <StandDownSummary downtimeEvents={recentDowntime} />
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <ProblemAssetsTable vehicles={problemAssets} />
-        <StandDownSummary downtimeEvents={recentDowntime} />
       </div>
     </div>
   );

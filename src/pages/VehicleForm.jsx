@@ -28,6 +28,10 @@ export default function VehicleForm() {
     rego: "",
     vin: "",
     asset_type: "",
+    vehicle_function_class: "",
+    tma_variant: "",
+    assignar_tracked: true,
+    assignar_asset_id: "",
     make: "",
     model: "",
     year: "",
@@ -62,6 +66,10 @@ export default function VehicleForm() {
         rego: vehicle.rego || "",
         vin: vehicle.vin || "",
         asset_type: vehicle.asset_type || "",
+        vehicle_function_class: vehicle.vehicle_function_class || "",
+        tma_variant: vehicle.tma_variant || "",
+        assignar_tracked: vehicle.assignar_tracked !== undefined ? vehicle.assignar_tracked : true,
+        assignar_asset_id: vehicle.assignar_asset_id || "",
         make: vehicle.make || "",
         model: vehicle.model || "",
         year: vehicle.year || "",
@@ -108,7 +116,26 @@ export default function VehicleForm() {
   };
 
   const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-set assignar_tracked = false when CorporateCar is selected
+      if (field === "vehicle_function_class" && value === "CorporateCar") {
+        newData.assignar_tracked = false;
+      }
+      
+      // Clear tma_variant when vehicle_function_class changes away from TMA
+      if (field === "vehicle_function_class" && value !== "TMA") {
+        newData.tma_variant = "";
+      }
+      
+      // Clear assignar_asset_id when assignar_tracked is false
+      if (field === "assignar_tracked" && !value) {
+        newData.assignar_asset_id = "";
+      }
+      
+      return newData;
+    });
   };
 
   return (
@@ -172,6 +199,45 @@ export default function VehicleForm() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="vehicle_function_class">Vehicle Functional Class *</Label>
+              <Select
+                value={formData.vehicle_function_class}
+                onValueChange={(v) => handleChange("vehicle_function_class", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select functional class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CorporateCar">Corporate Car</SelectItem>
+                  <SelectItem value="TrafficUte">Traffic Ute</SelectItem>
+                  <SelectItem value="VMSUte">VMS Ute</SelectItem>
+                  <SelectItem value="PodTruckCar">Pod Truck Car</SelectItem>
+                  <SelectItem value="PodTruckTruck">Pod Truck Truck</SelectItem>
+                  <SelectItem value="TMA">TMA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {formData.vehicle_function_class === "TMA" && (
+              <div className="space-y-2">
+                <Label htmlFor="tma_variant">TMA Variant</Label>
+                <Select
+                  value={formData.tma_variant}
+                  onValueChange={(v) => handleChange("tma_variant", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select TMA variant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Blades">Blades</SelectItem>
+                    <SelectItem value="Silke">Silke</SelectItem>
+                    <SelectItem value="Julietta">Julietta</SelectItem>
+                    <SelectItem value="Scorpion">Scorpion</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="make">Make</Label>
               <Input
@@ -258,6 +324,34 @@ export default function VehicleForm() {
                 onChange={(e) => handleChange("in_service_date", e.target.value)}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Assignar Tracking */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Assignar Tracking</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="assignar_tracked"
+                checked={formData.assignar_tracked}
+                onCheckedChange={(v) => handleChange("assignar_tracked", v)}
+              />
+              <Label htmlFor="assignar_tracked" className="cursor-pointer">
+                Track in Assignar
+              </Label>
+            </div>
+            {formData.assignar_tracked && (
+              <div className="space-y-2">
+                <Label htmlFor="assignar_asset_id">Assignar Asset ID</Label>
+                <Input
+                  id="assignar_asset_id"
+                  value={formData.assignar_asset_id}
+                  onChange={(e) => handleChange("assignar_asset_id", e.target.value)}
+                  placeholder="Enter Assignar asset ID"
+                />
+              </div>
+            )}
           </div>
         </div>
 

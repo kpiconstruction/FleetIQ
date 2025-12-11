@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function VehicleFilters({ filters, setFilters, hireProviders }) {
   const hasActiveFilters = Object.values(filters).some(
-    (v) => v && v !== "all" && v !== ""
+    (v) => v && v !== "all" && v !== "" && v !== false
   );
 
   const clearFilters = () => {
@@ -22,9 +22,11 @@ export default function VehicleFilters({ filters, setFilters, hireProviders }) {
       state: "all",
       depot: "all",
       asset_type: "all",
+      vehicle_function_class: "all",
       ownership_type: "all",
       status: "all",
       hire_provider: "all",
+      assignar_tracked: "all",
       overdue_service: false,
     });
   };
@@ -81,6 +83,24 @@ export default function VehicleFilters({ filters, setFilters, hireProviders }) {
           </Select>
 
           <Select
+            value={filters.vehicle_function_class}
+            onValueChange={(v) => setFilters({ ...filters, vehicle_function_class: v })}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Func Class" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Classes</SelectItem>
+              <SelectItem value="CorporateCar">Corporate Car</SelectItem>
+              <SelectItem value="TrafficUte">Traffic Ute</SelectItem>
+              <SelectItem value="VMSUte">VMS Ute</SelectItem>
+              <SelectItem value="PodTruckCar">Pod Truck Car</SelectItem>
+              <SelectItem value="PodTruckTruck">Pod Truck Truck</SelectItem>
+              <SelectItem value="TMA">TMA</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
             value={filters.ownership_type}
             onValueChange={(v) => setFilters({ ...filters, ownership_type: v })}
           >
@@ -128,6 +148,20 @@ export default function VehicleFilters({ filters, setFilters, hireProviders }) {
               </SelectContent>
             </Select>
           )}
+
+          <Select
+            value={filters.assignar_tracked}
+            onValueChange={(v) => setFilters({ ...filters, assignar_tracked: v })}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Assignar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vehicles</SelectItem>
+              <SelectItem value="true">Assignar Tracked</SelectItem>
+              <SelectItem value="false">Not Tracked</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Button
             variant={filters.overdue_service ? "default" : "outline"}

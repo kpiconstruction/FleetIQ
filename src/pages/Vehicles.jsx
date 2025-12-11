@@ -16,9 +16,11 @@ export default function Vehicles() {
     state: "all",
     depot: "all",
     asset_type: "all",
+    vehicle_function_class: "all",
     ownership_type: "all",
     status: "all",
     hire_provider: "all",
+    assignar_tracked: "all",
     overdue_service: false,
   });
 
@@ -49,9 +51,15 @@ export default function Vehicles() {
       // Filters
       if (filters.state !== "all" && v.state !== filters.state) return false;
       if (filters.asset_type !== "all" && v.asset_type !== filters.asset_type) return false;
+      if (filters.vehicle_function_class !== "all" && v.vehicle_function_class !== filters.vehicle_function_class) return false;
       if (filters.ownership_type !== "all" && v.ownership_type !== filters.ownership_type) return false;
       if (filters.status !== "all" && v.status !== filters.status) return false;
       if (filters.hire_provider !== "all" && v.hire_provider_id !== filters.hire_provider) return false;
+      if (filters.assignar_tracked !== "all") {
+        const isTracked = v.assignar_tracked !== false;
+        if (filters.assignar_tracked === "true" && !isTracked) return false;
+        if (filters.assignar_tracked === "false" && isTracked) return false;
+      }
       
       // Overdue service filter
       if (filters.overdue_service) {
