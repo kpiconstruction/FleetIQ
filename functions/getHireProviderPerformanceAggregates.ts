@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { getCached, setCached } from './services/aggregateCache.js';
 
 Deno.serve(async (req) => {
   try {
@@ -19,6 +20,13 @@ Deno.serve(async (req) => {
       hvnlRelevance,
       downtimeCauseCategory
     } = body;
+
+    // Check cache first
+    const cacheKey = { dateRangeStart, dateRangeEnd, stateFilter, functionClassFilter, providerFilter, hvnlRelevance, downtimeCauseCategory };
+    const cached = getCached('getHireProviderPerformanceAggregates', cacheKey);
+    if (cached) {
+      return Response.json(cached);
+    }
 
     const startDate = dateRangeStart;
     const endDate = dateRangeEnd;
@@ -339,11 +347,16 @@ Deno.serve(async (req) => {
         : 0,
     };
 
-    return Response.json({
+    const result = {
       success: true,
       providers: activeProviders,
       summary,
-    });
+    };
+
+    // Cache for 3 minutes
+    setCached('getHireProviderPerformanceAggregates', cacheKey, result, 3 * 60 * 1000);
+
+    return Response.json(result);
 
   } catch (error) {
     console.error('Hire provider performance aggregates error:', error);

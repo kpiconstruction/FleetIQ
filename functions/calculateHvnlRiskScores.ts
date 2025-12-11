@@ -11,6 +11,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check cache first (5 minute TTL for HVNL calculations)
+    const cached = getCached('calculateHvnlRiskScores', {});
+    if (cached) {
+      return Response.json(cached);
+    }
+
     const now = new Date();
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     const twelveMonthsAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);

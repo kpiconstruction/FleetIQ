@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { getCached, setCached } from './services/aggregateCache.js';
 
 Deno.serve(async (req) => {
   try {
@@ -18,6 +19,13 @@ Deno.serve(async (req) => {
       ownershipFilter, 
       providerFilter 
     } = body;
+
+    // Check cache first
+    const cacheKey = { dateRangeStart, dateRangeEnd, stateFilter, functionClassFilter, ownershipFilter, providerFilter };
+    const cached = getCached('getDowntimeAggregates', cacheKey);
+    if (cached) {
+      return Response.json(cached);
+    }
 
     const startDate = dateRangeStart;
     const endDate = dateRangeEnd;
@@ -173,7 +181,7 @@ Deno.serve(async (req) => {
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.downtime_hours - a.downtime_hours);
 
-    return Response.json({
+    const result = {
       success: true,
       byCauseCategory,
       byFunctionClass: sortedFunctionClasses,
@@ -186,7 +194,12 @@ Deno.serve(async (req) => {
         top_function_class: sortedFunctionClasses[0]?.name || 'None',
         top_hire_provider: sortedHireProviders[0]?.name || 'None',
       },
-    });
+    };
+
+    // Cache for 2 minutes
+    setCached('getDowntimeAggregates', cacheKey, result, 2 * 60 * 1000);
+
+    return Response.json(result);
 
   } catch (error) {
     console.error('Downtime aggregates error:', error);

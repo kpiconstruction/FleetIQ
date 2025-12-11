@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { getCached, setCached } from './services/aggregateCache.js';
 
 Deno.serve(async (req) => {
   try {
@@ -19,6 +20,13 @@ Deno.serve(async (req) => {
       providerFilter,
       repeatRepairThreshold = 3 
     } = body;
+
+    // Check cache first
+    const cacheKey = { dateRangeStart, dateRangeEnd, stateFilter, functionClassFilter, ownershipFilter, providerFilter };
+    const cached = getCached('getMaintenanceCostAggregates', cacheKey);
+    if (cached) {
+      return Response.json(cached);
+    }
 
     const startDate = dateRangeStart;
     const endDate = dateRangeEnd;
@@ -203,7 +211,7 @@ Deno.serve(async (req) => {
       data.shiftsPerService = data.serviceCount > 0 ? Math.round(data.totalShifts / data.serviceCount) : 0;
     });
 
-    return Response.json({
+    const result = {
       success: true,
       byClass,
       assetAggregates,
@@ -214,7 +222,12 @@ Deno.serve(async (req) => {
         repeat_repair_assets: assetAggregates.filter(a => a.repeat_repair_flag).length,
         cost_anomalies: anomalyList.length,
       },
-    });
+    };
+
+    // Cache for 2 minutes
+    setCached('getMaintenanceCostAggregates', cacheKey, result, 2 * 60 * 1000);
+
+    return Response.json(result);
 
   } catch (error) {
     console.error('Maintenance cost aggregates error:', error);
