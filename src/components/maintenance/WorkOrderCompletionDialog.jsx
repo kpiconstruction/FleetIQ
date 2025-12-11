@@ -85,6 +85,10 @@ export default function WorkOrderCompletionDialog({
         setValidationError("Confirmed downtime hours are required for hire fleet work orders.");
         return;
       }
+      if (!completionNotes.trim()) {
+        setValidationError("Completion notes are required for hire fleet work orders to confirm provider completion.");
+        return;
+      }
     }
 
     // Backend validation
@@ -106,6 +110,8 @@ export default function WorkOrderCompletionDialog({
       const updateData = {
         status: "Completed",
         completion_notes: completionNotes || null,
+        completion_confirmed_by_user_id: user.id,
+        completion_confirmed_at: new Date().toISOString(),
       };
 
       if (isOwned) {
@@ -114,8 +120,6 @@ export default function WorkOrderCompletionDialog({
 
       if (isHire) {
         updateData.confirmed_downtime_hours = parseFloat(confirmedDowntimeHours);
-        updateData.completion_confirmed_by_user_id = user.id;
-        updateData.completion_confirmed_at = new Date().toISOString();
       }
 
       // Add cost_chargeable_to for service record creation
@@ -253,13 +257,24 @@ export default function WorkOrderCompletionDialog({
 
           {/* Completion Notes */}
           <div className="space-y-2">
-            <Label>Completion Notes</Label>
+            <Label>
+              Completion Notes {isHire && <span className="text-rose-500">*</span>}
+            </Label>
             <Textarea
               value={completionNotes}
               onChange={(e) => setCompletionNotes(e.target.value)}
               rows={3}
-              placeholder="Any additional notes about the completion..."
+              placeholder={
+                isHire
+                  ? "Required: Confirm provider completion, reference any hire credit/stand-down credit..."
+                  : "Any additional notes about the completion..."
+              }
             />
+            {isHire && (
+              <p className="text-xs text-violet-600 dark:text-violet-400">
+                Must include confirmation of provider completion and reference to any credits
+              </p>
+            )}
           </div>
 
           {/* Confirmation Info */}

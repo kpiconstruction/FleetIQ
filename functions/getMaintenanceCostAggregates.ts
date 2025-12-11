@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
-import { detectCostAnomaly } from './maintenanceCostRules.js';
 
 Deno.serve(async (req) => {
   try {
@@ -180,24 +179,40 @@ Deno.serve(async (req) => {
     // Sort by total cost descending
     assetAggregates.sort((a, b) => b.total_cost - a.total_cost);
 
-    // Detect cost anomalies (hire scheduled services with non-zero costs)
-    let anomalyCount = 0;
-    for (const serviceRecord of periodServiceRecords) {
-      const vehicle = vehicleMap[serviceRecord.vehicle_id];
-      if (vehicle && detectCostAnomaly(serviceRecord, vehicle)) {
-        anomalyCount++;
-      }
-    }
+    // Extract anomaly records from service records
+    const anomalyServices = periodServiceRecords.filter(s => s.cost_anomaly_flag);
+    const anomalyList = anomalyServices.map(s => {
+      const vehicle = vehicleMap[s.vehicle_id];
+      return {
+        service_id: s.id,
+        vehicle_id: s.vehicle_id,
+        asset_code: vehicle?.asset_code,
+        rego: vehicle?.rego,
+        state: vehicle?.state,
+        service_date: s.service_date,
+        service_type: s.service_type,
+        cost_ex_gst: s.cost_ex_gst,
+        cost_chargeable_to: s.cost_chargeable_to,
+        anomaly_reason: s.cost_anomaly_reason,
+      };
+    });
+
+    // Calculate shifts-based metrics
+    Object.keys(byClass).forEach(fc => {
+      const data = byClass[fc];
+      data.shiftsPerService = data.serviceCount > 0 ? Math.round(data.totalShifts / data.serviceCount) : 0;
+    });
 
     return Response.json({
       success: true,
       byClass,
       assetAggregates,
+      anomalies: anomalyList,
       summary: {
         total_cost: assetAggregates.reduce((sum, a) => sum + a.total_cost, 0),
         total_assets: assetAggregates.length,
         repeat_repair_assets: assetAggregates.filter(a => a.repeat_repair_flag).length,
-        cost_anomalies: anomalyCount,
+        cost_anomalies: anomalyList.length,
       },
     });
 

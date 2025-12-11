@@ -219,6 +219,24 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Pre-commit validation: reject if any unmapped/invalid rows exist (unless user chose to ignore them)
+      const problematicRows = importedRows.filter(r => 
+        ['Unmapped', 'VehicleNotFound', 'InvalidData'].includes(r.resolution_status)
+      );
+
+      if (problematicRows.length > 0) {
+        return Response.json({
+          success: false,
+          error: `Cannot commit: ${problematicRows.length} rows have unresolved issues. Please resolve or ignore them.`,
+          problematicRows: problematicRows.slice(0, 10).map(r => ({
+            id: r.id,
+            status: r.resolution_status,
+            notes: r.resolution_notes,
+            asset_code: r.mapped_asset_code
+          }))
+        }, { status: 400 });
+      }
+
       // Filter rows eligible for commit
       let eligibleRows = importedRows.filter(r => 
         r.resolution_status === 'Mapped' || r.resolution_status === 'Ready'

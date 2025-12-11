@@ -20,6 +20,7 @@ import {
   Save,
   Ban,
   RefreshCw,
+  Lock,
 } from "lucide-react";
 import VehicleSearchDialog from "../components/migration/VehicleSearchDialog";
 import MappingTemplateManager from "../components/migration/MappingTemplateManager";

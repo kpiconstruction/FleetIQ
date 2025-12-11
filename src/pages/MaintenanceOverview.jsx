@@ -391,14 +391,13 @@ export default function MaintenanceOverview() {
 
       const totalKm = monthUsage.reduce((sum, u) => sum + (u.km_travelled || 0), 0);
       const totalShifts = monthUsage.reduce((sum, u) => sum + (u.shifts_count || 1), 0);
-      const costPer1000Km = totalKm > 0 ? (totalCost / totalKm) * 1000 : 0;
       const costPerShift = totalShifts > 0 ? totalCost / totalShifts : 0;
 
       return {
         month: format(month, "MMM yy"),
         totalCost: Math.round(totalCost),
-        costPer1000Km: Math.round(costPer1000Km),
         costPerShift: Math.round(costPerShift),
+        totalShifts: totalShifts,
       };
     });
   }, [serviceRecords, usageRecords, filteredVehicleIds, filters]);
@@ -889,7 +888,28 @@ export default function MaintenanceOverview() {
             <XAxis dataKey="month" stroke="#64748b" />
             <YAxis yAxisId="left" stroke="#64748b" />
             <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
-            <Tooltip />
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                      <p className="font-semibold">{data.month}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Total: ${data.totalCost.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Per Shift: ${data.costPerShift}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {data.totalShifts} shifts
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
             <Legend />
             <Bar yAxisId="left" dataKey="totalCost" fill="#6366f1" name="Total Cost ($)" />
             <Bar yAxisId="right" dataKey="costPerShift" fill="#10b981" name="Cost per Shift ($)" />
@@ -931,6 +951,31 @@ export default function MaintenanceOverview() {
               <Bar dataKey="totalCost" fill="#6366f1" name="Total Cost ($)" />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Cost Anomalies Card */}
+      {!costLoading && costData?.summary && costData.summary.cost_anomalies > 0 && (
+        <div className="mb-6">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-900 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  Cost Anomalies Detected
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                  {costData.summary.cost_anomalies} service records flagged for review
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-4xl font-bold text-amber-600 dark:text-amber-400">
+                  {costData.summary.cost_anomalies}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Flagged Records</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

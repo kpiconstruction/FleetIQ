@@ -11,6 +11,7 @@ Deno.serve(async (req) => {
     }
 
     const { work_order_id, status, purchase_order_number, confirmed_downtime_hours, completion_notes, cost_chargeable_to } = await req.json();
+    const wo = workOrder;
 
     // Only validate when changing to Completed
     if (status !== 'Completed') {
@@ -41,11 +42,13 @@ Deno.serve(async (req) => {
           rule: 'owned_po_required'
         }, { status: 400 });
       }
-      // Valid for owned fleet
+      // Valid for owned fleet - always set confirmed_by and confirmed_at
       return Response.json({ 
         valid: true, 
         ownership_type: ownershipType,
-        cost_chargeable_to: cost_chargeable_to || 'KPI'
+        cost_chargeable_to: cost_chargeable_to || 'KPI',
+        completion_confirmed_by_user_id: user.id,
+        completion_confirmed_at: new Date().toISOString()
       });
     }
 
@@ -69,6 +72,15 @@ Deno.serve(async (req) => {
           valid: false,
           error: 'Hire fleet work orders must record confirmed downtime and be confirmed by a Fleet Coordinator.',
           rule: 'hire_downtime_required'
+        }, { status: 400 });
+      }
+
+      // Check completion notes (required for hire fleet)
+      if (!completion_notes || completion_notes.trim() === '') {
+        return Response.json({
+          valid: false,
+          error: 'Completion notes are required for hire fleet work orders to confirm provider completion and any credits.',
+          rule: 'hire_notes_required'
         }, { status: 400 });
       }
 
