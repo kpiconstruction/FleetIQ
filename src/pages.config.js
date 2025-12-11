@@ -22,6 +22,7 @@ import HireProviderDetail from './pages/HireProviderDetail';
 import ServiceHistoryMigration from './pages/ServiceHistoryMigration';
 import NotificationSettings from './pages/NotificationSettings';
 import IncidentDetail from './pages/IncidentDetail';
+import AutomationControl from './pages/AutomationControl';
 import __Layout from './Layout.jsx';
 
 
@@ -50,6 +51,7 @@ export const PAGES = {
     "ServiceHistoryMigration": ServiceHistoryMigration,
     "NotificationSettings": NotificationSettings,
     "IncidentDetail": IncidentDetail,
+    "AutomationControl": AutomationControl,
 }
 
 export const pagesConfig = {
