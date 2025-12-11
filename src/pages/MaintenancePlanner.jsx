@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tantml:react-query";
 import { base44 } from "@/api/base44Client";
-import { format, addDays, subDays, parseISO, differenceInDays } from "date-fns";
+import { format, addDays } from "date-fns";
 import {
   Wrench,
   Filter,
@@ -57,29 +57,34 @@ export default function MaintenancePlanner() {
 
   const queryClient = useQueryClient();
 
-  const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
-    queryKey: ["vehicles"],
-    queryFn: () => base44.entities.Vehicle.list(),
-  });
-
-  const { data: maintenancePlans = [], isLoading: plansLoading } = useQuery({
-    queryKey: ["maintenancePlans"],
-    queryFn: () => base44.entities.MaintenancePlan.list(),
-  });
-
-  const { data: maintenanceTemplates = [] } = useQuery({
-    queryKey: ["maintenanceTemplates"],
-    queryFn: () => base44.entities.MaintenanceTemplate.filter({ active: true }),
+  const { data: planScheduleData, isLoading } = useQuery({
+    queryKey: [
+      "maintenancePlanSchedule",
+      filters.dateRangeStart,
+      filters.dateRangeEnd,
+      filters.state,
+      filters.functionClass,
+      filters.ownership,
+      filters.provider,
+      filters.status,
+    ],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getMaintenancePlanSchedule", {
+        dateRangeStart: filters.dateRangeStart,
+        dateRangeEnd: filters.dateRangeEnd,
+        stateFilter: filters.state,
+        functionClassFilter: filters.functionClass,
+        ownershipFilter: filters.ownership,
+        providerFilter: filters.provider,
+        statusFilter: filters.status,
+      });
+      return response.data;
+    },
   });
 
   const { data: hireProviders = [] } = useQuery({
     queryKey: ["hireProviders"],
     queryFn: () => base44.entities.HireProvider.list(),
-  });
-
-  const { data: workOrders = [] } = useQuery({
-    queryKey: ["workOrders"],
-    queryFn: () => base44.entities.MaintenanceWorkOrder.list("-raised_datetime", 500),
   });
 
   const createWorkOrderMutation = useMutation({
@@ -91,21 +96,6 @@ export default function MaintenancePlanner() {
     },
   });
 
-  // Create lookup maps
-  const vehicleMap = useMemo(() => {
-    return vehicles.reduce((acc, v) => {
-      acc[v.id] = v;
-      return acc;
-    }, {});
-  }, [vehicles]);
-
-  const templateMap = useMemo(() => {
-    return maintenanceTemplates.reduce((acc, t) => {
-      acc[t.id] = t;
-      return acc;
-    }, {});
-  }, [maintenanceTemplates]);
-
   const providerMap = useMemo(() => {
     return hireProviders.reduce((acc, p) => {
       acc[p.id] = p;
@@ -113,142 +103,13 @@ export default function MaintenancePlanner() {
     }, {});
   }, [hireProviders]);
 
-  // Calculate plan status with scheduling logic
-  const enrichedPlans = useMemo(() => {
-    const now = new Date();
-    const thirtyDaysFromNow = addDays(now, 30);
-
-    return maintenancePlans.map((plan) => {
-      const vehicle = vehicleMap[plan.vehicle_id];
-      const template = templateMap[plan.maintenance_template_id];
-
-      if (!vehicle || !template) return null;
-
-      // Calculate next due date based on trigger type
-      let nextDueDate = plan.next_due_date ? parseISO(plan.next_due_date) : null;
-      let nextDueOdometer = plan.next_due_odometer_km;
-
-      // If no history, initialize from vehicle data
-      if (!nextDueDate && template.trigger_type === "TimeBased" && template.interval_days) {
-        const baseDate = plan.last_completed_date
-          ? parseISO(plan.last_completed_date)
-          : vehicle.in_service_date
-          ? parseISO(vehicle.in_service_date)
-          : now;
-        nextDueDate = addDays(baseDate, template.interval_days);
-      }
-
-      if (!nextDueOdometer && template.trigger_type === "OdometerBased" && template.interval_km) {
-        const baseOdometer = plan.last_completed_odometer_km || vehicle.current_odometer_km || 0;
-        nextDueOdometer = baseOdometer + template.interval_km;
-      }
-
-      if (template.trigger_type === "Hybrid") {
-        if (!nextDueDate && template.interval_days) {
-          const baseDate = plan.last_completed_date
-            ? parseISO(plan.last_completed_date)
-            : vehicle.in_service_date
-            ? parseISO(vehicle.in_service_date)
-            : now;
-          nextDueDate = addDays(baseDate, template.interval_days);
-        }
-        if (!nextDueOdometer && template.interval_km) {
-          const baseOdometer = plan.last_completed_odometer_km || vehicle.current_odometer_km || 0;
-          nextDueOdometer = baseOdometer + template.interval_km;
-        }
-      }
-
-      // Determine status
-      let statusLabel = "Scheduled";
-      let statusColor = "bg-slate-100 text-slate-700 border-slate-200";
-
-      if (nextDueDate && nextDueDate < now) {
-        statusLabel = "Overdue";
-        statusColor = "bg-rose-50 text-rose-700 border-rose-200";
-      } else if (nextDueDate && nextDueDate <= thirtyDaysFromNow) {
-        statusLabel = "Due Soon";
-        statusColor = "bg-amber-50 text-amber-700 border-amber-200";
-      }
-
-      // Check odometer if applicable
-      if (
-        nextDueOdometer &&
-        vehicle.current_odometer_km &&
-        vehicle.current_odometer_km >= nextDueOdometer
-      ) {
-        statusLabel = "Overdue";
-        statusColor = "bg-rose-50 text-rose-700 border-rose-200";
-      }
-
-      return {
-        ...plan,
-        vehicle,
-        template,
-        nextDueDate,
-        nextDueOdometer,
-        statusLabel,
-        statusColor,
-        daysUntilDue: nextDueDate ? differenceInDays(nextDueDate, now) : null,
-      };
-    }).filter(Boolean);
-  }, [maintenancePlans, vehicleMap, templateMap]);
-
-  // Apply filters
-  const filteredPlans = useMemo(() => {
-    return enrichedPlans.filter((plan) => {
-      if (filters.state !== "all" && plan.vehicle.state !== filters.state) return false;
-      if (
-        filters.functionClass !== "all" &&
-        plan.vehicle.vehicle_function_class !== filters.functionClass
-      )
-        return false;
-      if (filters.ownership !== "all" && plan.vehicle.ownership_type !== filters.ownership)
-        return false;
-      if (
-        filters.provider !== "all" &&
-        plan.vehicle.hire_provider_id !== filters.provider
-      )
-        return false;
-
-      // Status filter
-      if (filters.status === "upcoming" && plan.statusLabel !== "Due Soon") return false;
-      if (filters.status === "overdue" && plan.statusLabel !== "Overdue") return false;
-      if (
-        filters.status === "completed" &&
-        !workOrders.find(
-          (wo) =>
-            wo.maintenance_plan_id === plan.id &&
-            wo.status === "Completed" &&
-            wo.raised_datetime >= filters.dateRangeStart
-        )
-      )
-        return false;
-
-      // Date range
-      if (plan.nextDueDate) {
-        const dueDate = format(plan.nextDueDate, "yyyy-MM-dd");
-        if (dueDate < filters.dateRangeStart || dueDate > filters.dateRangeEnd) return false;
-      }
-
-      return true;
-    });
-  }, [enrichedPlans, filters, workOrders]);
-
-  // KPI calculations
-  const upcomingServices = enrichedPlans.filter(
-    (p) => p.statusLabel === "Due Soon" || p.statusLabel === "Scheduled"
-  ).length;
-  const overdueServices = enrichedPlans.filter((p) => p.statusLabel === "Overdue").length;
-  const hvnlCriticalOverdue = enrichedPlans.filter(
-    (p) => p.statusLabel === "Overdue" && p.template.hvnl_relevance_flag
-  ).length;
-
-  const last30Days = subDays(new Date(), 30);
-  const recentWorkOrders = workOrders.filter(
-    (wo) => new Date(wo.raised_datetime) >= last30Days
-  );
-  const plannedLast30 = recentWorkOrders.filter((wo) => wo.raised_from === "Schedule").length;
-  const completedLast30 = recentWorkOrders.filter((wo) => wo.status === "Completed").length;
+  const enrichedPlans = planScheduleData?.plans || [];
+  const summary = planScheduleData?.summary || {
+    total_plans: 0,
+    overdue_count: 0,
+    due_soon_count: 0,
+    hvnl_critical_overdue: 0,
+  };
 
   const handleRaiseWorkOrder = (plan) => {
     setWorkOrderForm({
@@ -258,7 +119,7 @@ export default function MaintenancePlanner() {
       work_order_type: "Scheduled",
       raised_from: "Schedule",
       raised_datetime: new Date().toISOString(),
-      due_date: plan.nextDueDate ? format(plan.nextDueDate, "yyyy-MM-dd") : "",
+      due_date: plan.next_due_date || "",
       status: "Open",
       priority: plan.template.priority,
       odometer_at_raise: plan.vehicle.current_odometer_km || 0,
@@ -273,8 +134,6 @@ export default function MaintenancePlanner() {
     createWorkOrderMutation.mutate(workOrderForm);
   };
 
-  const isLoading = vehiclesLoading || plansLoading;
-
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto">
       {/* Header */}
@@ -285,7 +144,7 @@ export default function MaintenancePlanner() {
             Preventative Maintenance Planner
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
-            {filteredPlans.length} active maintenance plans
+            {enrichedPlans.length} active maintenance plans
           </p>
         </div>
       </div>
@@ -393,7 +252,7 @@ export default function MaintenancePlanner() {
               <span className="text-sm font-medium">Upcoming Services</span>
             </div>
             <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-              {upcomingServices}
+              {summary.due_soon_count}
             </p>
             <p className="text-xs text-slate-400 mt-1">Next 30 days</p>
           </div>
@@ -403,19 +262,19 @@ export default function MaintenancePlanner() {
               <AlertTriangle className="w-4 h-4" />
               <span className="text-sm font-medium">Overdue Services</span>
             </div>
-            <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{overdueServices}</p>
+            <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{summary.overdue_count}</p>
             <p className="text-xs text-slate-400 mt-1">Require attention</p>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 mb-1">
               <CheckCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">Planned vs Completed</span>
+              <span className="text-sm font-medium">On Track</span>
             </div>
             <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-              {completedLast30}/{plannedLast30}
+              {summary.on_track_count}
             </p>
-            <p className="text-xs text-slate-400 mt-1">Last 30 days</p>
+            <p className="text-xs text-slate-400 mt-1">Scheduled</p>
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
@@ -424,7 +283,7 @@ export default function MaintenancePlanner() {
               <span className="text-sm font-medium">HVNL-Critical Overdue</span>
             </div>
             <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-              {hvnlCriticalOverdue}
+              {summary.hvnl_critical_overdue}
             </p>
             <p className="text-xs text-slate-400 mt-1">Compliance risk</p>
           </div>
@@ -457,86 +316,93 @@ export default function MaintenancePlanner() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPlans.map((plan) => (
-                <TableRow
-                  key={plan.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700"
-                >
-                  <TableCell className="font-medium">{plan.vehicle.asset_code}</TableCell>
-                  <TableCell>{plan.vehicle.state}</TableCell>
-                  <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                    {plan.vehicle.vehicle_function_class}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {plan.template.name}
-                    {plan.template.hvnl_relevance_flag && (
-                      <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 text-xs">
-                        HVNL
+              {enrichedPlans.map((plan) => {
+                const statusColor = 
+                  plan.status === "Overdue" ? "bg-rose-50 text-rose-700 border-rose-200" :
+                  plan.status === "DueSoon" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                  "bg-slate-100 text-slate-700 border-slate-200";
+
+                return (
+                  <TableRow
+                    key={plan.id}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700"
+                  >
+                    <TableCell className="font-medium">{plan.vehicle.asset_code}</TableCell>
+                    <TableCell>{plan.vehicle.state}</TableCell>
+                    <TableCell className="text-sm text-slate-600 dark:text-slate-400">
+                      {plan.vehicle.vehicle_function_class}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {plan.template.name}
+                      {plan.is_hvnl_critical && (
+                        <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 text-xs">
+                          HVNL
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant="outline" className="bg-slate-50">
+                        {plan.template.trigger_type}
                       </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <Badge variant="outline" className="bg-slate-50">
-                      {plan.template.trigger_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {plan.nextDueDate ? (
-                      <div>
-                        <p className="font-medium">{format(plan.nextDueDate, "d MMM yyyy")}</p>
-                        <p className="text-xs text-slate-500">
-                          {plan.daysUntilDue !== null
-                            ? plan.daysUntilDue >= 0
-                              ? `${plan.daysUntilDue} days`
-                              : `${Math.abs(plan.daysUntilDue)} days overdue`
-                            : ""}
-                        </p>
-                      </div>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {plan.nextDueOdometer ? (
-                      <div>
-                        <p className="font-medium">{plan.nextDueOdometer.toLocaleString()}</p>
-                        {plan.vehicle.current_odometer_km && (
+                    </TableCell>
+                    <TableCell>
+                      {plan.next_due_date ? (
+                        <div>
+                          <p className="font-medium">{format(new Date(plan.next_due_date), "d MMM yyyy")}</p>
                           <p className="text-xs text-slate-500">
-                            Current: {plan.vehicle.current_odometer_km.toLocaleString()}
+                            {plan.days_until_due !== null
+                              ? `${plan.days_until_due} days`
+                              : plan.days_overdue !== null
+                              ? `${plan.days_overdue} days overdue`
+                              : ""}
                           </p>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={plan.statusColor}>
-                      {plan.statusLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-600">
-                    {plan.vehicle.ownership_type}
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-600">
-                    {plan.vehicle.hire_provider_id
-                      ? providerMap[plan.vehicle.hire_provider_id]?.name || "-"
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleRaiseWorkOrder(plan)}
-                      className="text-xs"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Raise WO
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredPlans.length === 0 && (
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {plan.next_due_odometer_km ? (
+                        <div>
+                          <p className="font-medium">{plan.next_due_odometer_km.toLocaleString()}</p>
+                          {plan.vehicle.current_odometer_km && (
+                            <p className="text-xs text-slate-500">
+                              Current: {plan.vehicle.current_odometer_km.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={statusColor}>
+                        {plan.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600">
+                      {plan.vehicle.ownership_type}
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600">
+                      {plan.vehicle.hire_provider_id
+                        ? providerMap[plan.vehicle.hire_provider_id]?.name || "-"
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRaiseWorkOrder(plan)}
+                        className="text-xs"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Raise WO
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {enrichedPlans.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-12">
                     <p className="text-slate-500 dark:text-slate-400">

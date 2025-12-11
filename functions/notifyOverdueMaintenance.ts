@@ -4,71 +4,30 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const now = new Date();
+    // Get enriched maintenance plan schedule with computed fields
+    const scheduleResponse = await base44.asServiceRole.functions.invoke('getMaintenancePlanSchedule', {
+      stateFilter: 'all',
+      functionClassFilter: 'all',
+      ownershipFilter: 'all',
+      providerFilter: 'all',
+    });
 
-    // Fetch all active maintenance plans
-    const maintenancePlans = await base44.asServiceRole.entities.MaintenancePlan.filter({ status: 'Active' });
-    const vehicles = await base44.asServiceRole.entities.Vehicle.list();
-    const templates = await base44.asServiceRole.entities.MaintenanceTemplate.filter({ active: true });
+    const scheduleData = scheduleResponse.data;
+    if (!scheduleData.success) {
+      throw new Error('Failed to fetch maintenance schedule');
+    }
 
-    // Create lookup maps
-    const vehicleMap = {};
-    vehicles.forEach(v => vehicleMap[v.id] = v);
-
-    const templateMap = {};
-    templates.forEach(t => templateMap[t.id] = t);
+    const enrichedPlans = scheduleData.plans;
 
     // Track overdue plans
-    const overduePlans = [];
-    const hvnlCriticalOverdue = [];
+    const overduePlans = enrichedPlans.filter(p => p.is_overdue);
+    const hvnlCriticalOverdue = overduePlans.filter(p => p.is_hvnl_critical);
+    
+    // Count by state
     const stateOverdueCount = {};
-
-    maintenancePlans.forEach(plan => {
-      const vehicle = vehicleMap[plan.vehicle_id];
-      const template = templateMap[plan.maintenance_template_id];
-
-      if (!vehicle || !template) return;
-
-      const state = vehicle.state;
-      if (!stateOverdueCount[state]) {
-        stateOverdueCount[state] = 0;
-      }
-
-      let isOverdue = false;
-
-      // Check date-based overdue
-      if (plan.next_due_date) {
-        const dueDate = new Date(plan.next_due_date);
-        if (dueDate < now) {
-          isOverdue = true;
-        }
-      }
-
-      // Check odometer-based overdue
-      if (plan.next_due_odometer_km && vehicle.current_odometer_km) {
-        if (vehicle.current_odometer_km >= plan.next_due_odometer_km) {
-          isOverdue = true;
-        }
-      }
-
-      if (isOverdue) {
-        overduePlans.push({
-          plan,
-          vehicle,
-          template,
-        });
-
-        stateOverdueCount[state]++;
-
-        // Track HVNL-critical overdue
-        if (template.hvnl_relevance_flag) {
-          hvnlCriticalOverdue.push({
-            plan,
-            vehicle,
-            template,
-          });
-        }
-      }
+    overduePlans.forEach(plan => {
+      const state = plan.vehicle.state;
+      stateOverdueCount[state] = (stateOverdueCount[state] || 0) + 1;
     });
 
     // Send notifications for HVNL-critical overdue plans
@@ -86,7 +45,8 @@ Deno.serve(async (req) => {
           ${hvnlCriticalOverdue.map(item => `
             <li>
               <strong>${item.vehicle.asset_code}</strong> (${item.vehicle.state}) - ${item.template.name}
-              ${item.plan.next_due_date ? `<br>Due: ${new Date(item.plan.next_due_date).toLocaleDateString('en-AU')}` : ''}
+              ${item.next_due_date ? `<br>Due: ${new Date(item.next_due_date).toLocaleDateString('en-AU')}` : ''}
+              ${item.days_overdue ? `<br>Days Overdue: ${item.days_overdue}` : ''}
             </li>
           `).join('')}
         </ul>

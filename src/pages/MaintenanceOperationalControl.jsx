@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils";
-import { format, addDays, parseISO, differenceInDays } from "date-fns";
+import { format, addDays } from "date-fns";
 import {
   Filter,
   Calendar,
@@ -46,14 +46,28 @@ export default function MaintenanceOperationalControl() {
     provider: "all",
   });
 
-  const { data: vehicles = [], isLoading } = useQuery({
-    queryKey: ["vehicles"],
-    queryFn: () => base44.entities.Vehicle.list(),
-  });
-
-  const { data: maintenancePlans = [] } = useQuery({
-    queryKey: ["maintenancePlans"],
-    queryFn: () => base44.entities.MaintenancePlan.list(),
+  const { data: planScheduleData, isLoading } = useQuery({
+    queryKey: [
+      "maintenancePlanSchedule",
+      filters.dateRangeStart,
+      filters.dateRangeEnd,
+      filters.state,
+      filters.functionClass,
+      filters.ownership,
+      filters.provider,
+      filters.hvnlRelevance,
+    ],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getMaintenancePlanSchedule", {
+        dateRangeStart: filters.dateRangeStart,
+        dateRangeEnd: filters.dateRangeEnd,
+        stateFilter: filters.state,
+        functionClassFilter: filters.functionClass,
+        ownershipFilter: filters.ownership,
+        providerFilter: filters.provider,
+      });
+      return response.data;
+    },
   });
 
   const { data: maintenanceTemplates = [] } = useQuery({
@@ -71,14 +85,6 @@ export default function MaintenanceOperationalControl() {
     queryFn: () => base44.entities.HireProvider.list(),
   });
 
-  // Create lookup maps
-  const vehicleMap = useMemo(() => {
-    return vehicles.reduce((acc, v) => {
-      acc[v.id] = v;
-      return acc;
-    }, {});
-  }, [vehicles]);
-
   const templateMap = useMemo(() => {
     return maintenanceTemplates.reduce((acc, t) => {
       acc[t.id] = t;
@@ -93,111 +99,53 @@ export default function MaintenanceOperationalControl() {
     }, {});
   }, [hireProviders]);
 
-  // Filter vehicles based on criteria
-  const filteredVehicleIds = useMemo(() => {
-    return new Set(
-      vehicles
-        .filter((v) => {
-          if (filters.state !== "all" && v.state !== filters.state) return false;
-          if (filters.functionClass !== "all" && v.vehicle_function_class !== filters.functionClass)
-            return false;
-          if (filters.ownership !== "all" && v.ownership_type !== filters.ownership) return false;
-          if (filters.provider !== "all" && v.hire_provider_id !== filters.provider) return false;
-          return true;
-        })
-        .map((v) => v.id)
-    );
-  }, [vehicles, filters]);
+  const allPlans = planScheduleData?.plans || [];
 
-  // Calculate upcoming services (next 30 days)
+  // Filter for HVNL relevance
+  const filteredPlans = useMemo(() => {
+    return allPlans.filter(plan => {
+      if (filters.hvnlRelevance === "hvnl" && !plan.is_hvnl_critical) return false;
+      if (filters.hvnlRelevance === "non-hvnl" && plan.is_hvnl_critical) return false;
+      return true;
+    });
+  }, [allPlans, filters.hvnlRelevance]);
+
+  // Calculate upcoming services (DueSoon status)
   const upcomingServices = useMemo(() => {
-    const now = new Date();
-    const endDate = new Date(filters.dateRangeEnd);
-
-    return maintenancePlans
-      .filter((plan) => {
-        if (plan.status !== "Active") return false;
-        if (!filteredVehicleIds.has(plan.vehicle_id)) return false;
-
-        const template = templateMap[plan.maintenance_template_id];
-        if (filters.hvnlRelevance === "hvnl" && !template?.hvnl_relevance_flag) return false;
-        if (filters.hvnlRelevance === "non-hvnl" && template?.hvnl_relevance_flag) return false;
-
-        if (!plan.next_due_date) return false;
-        const dueDate = parseISO(plan.next_due_date);
-        return dueDate >= now && dueDate <= endDate;
-      })
-      .map((plan) => {
-        const vehicle = vehicleMap[plan.vehicle_id];
-        const template = templateMap[plan.maintenance_template_id];
-        const dueDate = parseISO(plan.next_due_date);
-        const daysUntilDue = differenceInDays(dueDate, new Date());
-
-        return {
-          plan,
-          vehicle,
-          template,
-          dueDate,
-          daysUntilDue,
-        };
-      })
+    return filteredPlans
+      .filter(plan => plan.is_due_soon)
+      .map(plan => ({
+        plan,
+        vehicle: plan.vehicle,
+        template: plan.template,
+        dueDate: new Date(plan.next_due_date),
+        daysUntilDue: plan.days_until_due,
+      }))
       .sort((a, b) => a.daysUntilDue - b.daysUntilDue);
-  }, [maintenancePlans, filteredVehicleIds, templateMap, vehicleMap, filters]);
+  }, [filteredPlans]);
 
   // Calculate overdue plans
   const overduePlans = useMemo(() => {
-    const now = new Date();
-
-    return maintenancePlans
-      .filter((plan) => {
-        if (plan.status !== "Active") return false;
-        if (!filteredVehicleIds.has(plan.vehicle_id)) return false;
-
-        const template = templateMap[plan.maintenance_template_id];
-        if (filters.hvnlRelevance === "hvnl" && !template?.hvnl_relevance_flag) return false;
-        if (filters.hvnlRelevance === "non-hvnl" && template?.hvnl_relevance_flag) return false;
-
-        let isOverdue = false;
-
-        if (plan.next_due_date) {
-          const dueDate = parseISO(plan.next_due_date);
-          if (dueDate < now) isOverdue = true;
-        }
-
-        const vehicle = vehicleMap[plan.vehicle_id];
-        if (
-          plan.next_due_odometer_km &&
-          vehicle?.current_odometer_km &&
-          vehicle.current_odometer_km >= plan.next_due_odometer_km
-        ) {
-          isOverdue = true;
-        }
-
-        return isOverdue;
-      })
-      .map((plan) => {
-        const vehicle = vehicleMap[plan.vehicle_id];
-        const template = templateMap[plan.maintenance_template_id];
-        const dueDate = plan.next_due_date ? parseISO(plan.next_due_date) : null;
-        const daysOverdue = dueDate ? Math.abs(differenceInDays(dueDate, new Date())) : null;
-
-        return {
-          plan,
-          vehicle,
-          template,
-          dueDate,
-          daysOverdue,
-        };
-      })
+    return filteredPlans
+      .filter(plan => plan.is_overdue)
+      .map(plan => ({
+        plan,
+        vehicle: plan.vehicle,
+        template: plan.template,
+        dueDate: plan.next_due_date ? new Date(plan.next_due_date) : null,
+        daysOverdue: plan.days_overdue,
+      }))
       .sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
-  }, [maintenancePlans, filteredVehicleIds, templateMap, vehicleMap, filters]);
+  }, [filteredPlans]);
 
   // Open work orders
   const openWorkOrders = useMemo(() => {
+    const vehicleIds = new Set(filteredPlans.map(p => p.vehicle_id));
+    
     return workOrders
       .filter((wo) => {
         if (wo.status === "Completed" || wo.status === "Cancelled") return false;
-        if (!filteredVehicleIds.has(wo.vehicle_id)) return false;
+        if (!vehicleIds.has(wo.vehicle_id)) return false;
 
         const template = templateMap[wo.maintenance_template_id];
         if (filters.hvnlRelevance === "hvnl" && !template?.hvnl_relevance_flag) return false;
@@ -206,12 +154,13 @@ export default function MaintenanceOperationalControl() {
         return true;
       })
       .map((wo) => {
-        const vehicle = vehicleMap[wo.vehicle_id];
+        const plan = allPlans.find(p => p.id === wo.maintenance_plan_id);
+        const vehicle = plan?.vehicle || {};
         const template = templateMap[wo.maintenance_template_id];
-        const dueDate = wo.due_date ? parseISO(wo.due_date) : null;
+        const dueDate = wo.due_date ? new Date(wo.due_date) : null;
         const now = new Date();
         const isOverdue = dueDate && dueDate < now;
-        const isDueSoon = dueDate && !isOverdue && differenceInDays(dueDate, now) <= 7;
+        const isDueSoon = dueDate && !isOverdue && Math.floor((dueDate - now) / (1000 * 60 * 60 * 24)) <= 7;
 
         return {
           wo,
@@ -227,7 +176,7 @@ export default function MaintenanceOperationalControl() {
         if (!b.dueDate) return -1;
         return a.dueDate - b.dueDate;
       });
-  }, [workOrders, filteredVehicleIds, templateMap, vehicleMap, filters]);
+  }, [workOrders, allPlans, filteredPlans, templateMap, filters]);
 
   const getPriorityBadge = (priority) => {
     const styles = {

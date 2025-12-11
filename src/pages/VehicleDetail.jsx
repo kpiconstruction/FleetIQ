@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils";
-import { format, subDays, parseISO, addDays, differenceInDays } from "date-fns";
+import { format, subDays } from "date-fns";
 import {
   ArrowLeft,
   Truck,
@@ -104,9 +104,17 @@ export default function VehicleDetail() {
     enabled: !!vehicleId,
   });
 
-  const { data: maintenancePlans = [] } = useQuery({
-    queryKey: ["maintenancePlans", vehicleId],
-    queryFn: () => base44.entities.MaintenancePlan.filter({ vehicle_id: vehicleId }),
+  const { data: maintenancePlanSchedule } = useQuery({
+    queryKey: ["maintenancePlanSchedule", vehicleId],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getMaintenancePlanSchedule", {
+        stateFilter: "all",
+        functionClassFilter: "all",
+        ownershipFilter: "all",
+        providerFilter: "all",
+      });
+      return response.data;
+    },
     enabled: !!vehicleId,
   });
 
@@ -157,59 +165,38 @@ export default function VehicleDetail() {
     }, {});
   }, [hireProviders]);
 
-  // Calculate maintenance status
-  const maintenanceStatus = useMemo(() => {
-    if (!maintenancePlans.length || !vehicle) return null;
+  // Get vehicle-specific maintenance plans from schedule data
+  const vehiclePlans = useMemo(() => {
+    if (!maintenancePlanSchedule?.plans) return [];
+    return maintenancePlanSchedule.plans.filter(p => p.vehicle_id === vehicleId);
+  }, [maintenancePlanSchedule, vehicleId]);
 
-    const now = new Date();
-    const thirtyDaysFromNow = addDays(now, 30);
+  // Calculate maintenance status from precomputed data
+  const maintenanceStatus = useMemo(() => {
+    if (!vehiclePlans.length) return null;
+
     let earliestDueDate = null;
     let earliestDueOdometer = null;
     let overallStatus = "On Track";
 
-    maintenancePlans.forEach((plan) => {
-      const template = templateMap[plan.maintenance_template_id];
-      if (!template || plan.status !== "Active") return;
-
-      // Calculate next due
-      let nextDueDate = plan.next_due_date ? parseISO(plan.next_due_date) : null;
-      let nextDueOdometer = plan.next_due_odometer_km;
-
-      if (!nextDueDate && template.trigger_type === "TimeBased" && template.interval_days) {
-        const baseDate = plan.last_completed_date
-          ? parseISO(plan.last_completed_date)
-          : vehicle.in_service_date
-          ? parseISO(vehicle.in_service_date)
-          : now;
-        nextDueDate = addDays(baseDate, template.interval_days);
-      }
-
-      if (!nextDueOdometer && template.trigger_type === "OdometerBased" && template.interval_km) {
-        const baseOdometer = plan.last_completed_odometer_km || vehicle.current_odometer_km || 0;
-        nextDueOdometer = baseOdometer + template.interval_km;
-      }
-
-      // Check if overdue
-      if (nextDueDate && nextDueDate < now) {
+    vehiclePlans.forEach((plan) => {
+      if (plan.status === "Overdue") {
         overallStatus = "Overdue";
-      } else if (nextDueDate && nextDueDate <= thirtyDaysFromNow && overallStatus !== "Overdue") {
+      } else if (plan.status === "DueSoon" && overallStatus !== "Overdue") {
         overallStatus = "Due Soon";
       }
 
-      if (
-        nextDueOdometer &&
-        vehicle.current_odometer_km &&
-        vehicle.current_odometer_km >= nextDueOdometer
-      ) {
-        overallStatus = "Overdue";
+      // Track earliest due
+      if (plan.next_due_date) {
+        const dueDate = new Date(plan.next_due_date);
+        if (!earliestDueDate || dueDate < earliestDueDate) {
+          earliestDueDate = dueDate;
+        }
       }
-
-      // Track earliest
-      if (!earliestDueDate || (nextDueDate && nextDueDate < earliestDueDate)) {
-        earliestDueDate = nextDueDate;
-      }
-      if (!earliestDueOdometer || (nextDueOdometer && nextDueOdometer < earliestDueOdometer)) {
-        earliestDueOdometer = nextDueOdometer;
+      if (plan.next_due_odometer_km) {
+        if (!earliestDueOdometer || plan.next_due_odometer_km < earliestDueOdometer) {
+          earliestDueOdometer = plan.next_due_odometer_km;
+        }
       }
     });
 
@@ -218,10 +205,9 @@ export default function VehicleDetail() {
       nextDueDate: earliestDueDate,
       nextDueOdometer: earliestDueOdometer,
     };
-  }, [maintenancePlans, vehicle, templateMap]);
+  }, [vehiclePlans]);
 
   const handleRaiseWorkOrder = (plan) => {
-    const template = templateMap[plan.maintenance_template_id];
     setWorkOrderForm({
       vehicle_id: vehicleId,
       maintenance_plan_id: plan.id,
@@ -229,13 +215,13 @@ export default function VehicleDetail() {
       work_order_type: "Scheduled",
       raised_from: "Schedule",
       raised_datetime: new Date().toISOString(),
-      due_date: plan.next_due_date ? format(parseISO(plan.next_due_date), "yyyy-MM-dd") : "",
+      due_date: plan.next_due_date || "",
       status: "Open",
-      priority: template?.priority || "Routine",
+      priority: plan.template?.priority || "Routine",
       odometer_at_raise: vehicle?.current_odometer_km || 0,
       assigned_to_workshop_name: "",
       notes_internal: "",
-      notes_for_provider: template?.task_summary || "",
+      notes_for_provider: plan.template?.task_summary || "",
     });
     setRaiseWorkOrderDialog(plan);
   };
@@ -468,14 +454,13 @@ export default function VehicleDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {maintenancePlans
-                    .filter((p) => p.status === "Active")
+                  {vehiclePlans
+                    .filter((p) => p.status !== "Suspended")
                     .map((plan) => {
-                      const template = templateMap[plan.maintenance_template_id];
-                      const now = new Date();
-                      const nextDue = plan.next_due_date ? parseISO(plan.next_due_date) : null;
-                      const isOverdue = nextDue && nextDue < now;
-                      const isDueSoon = nextDue && nextDue <= addDays(now, 30);
+                      const statusColor = 
+                        plan.status === "Overdue" ? "bg-rose-50 text-rose-700 border-rose-200" :
+                        plan.status === "DueSoon" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                        "bg-slate-100 text-slate-700 border-slate-200";
 
                       return (
                         <TableRow
@@ -483,8 +468,8 @@ export default function VehicleDetail() {
                           className="hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700"
                         >
                           <TableCell className="font-medium">
-                            {template?.name || "Unknown"}
-                            {template?.hvnl_relevance_flag && (
+                            {plan.template?.name || "Unknown"}
+                            {plan.is_hvnl_critical && (
                               <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 text-xs">
                                 HVNL
                               </Badge>
@@ -492,15 +477,19 @@ export default function VehicleDetail() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-slate-50">
-                              {template?.trigger_type}
+                              {plan.template?.trigger_type}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             {plan.next_due_date ? (
                               <>
-                                <p className="font-medium">{format(parseISO(plan.next_due_date), "d MMM yyyy")}</p>
+                                <p className="font-medium">{format(new Date(plan.next_due_date), "d MMM yyyy")}</p>
                                 <p className="text-xs text-slate-500">
-                                  {differenceInDays(parseISO(plan.next_due_date), now)} days
+                                  {plan.days_until_due !== null
+                                    ? `${plan.days_until_due} days`
+                                    : plan.days_overdue !== null
+                                    ? `${plan.days_overdue} days overdue`
+                                    : ""}
                                 </p>
                               </>
                             ) : (
@@ -511,17 +500,8 @@ export default function VehicleDetail() {
                             {plan.next_due_odometer_km ? `${plan.next_due_odometer_km.toLocaleString()} km` : "-"}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                isOverdue
-                                  ? "bg-rose-50 text-rose-700 border-rose-200"
-                                  : isDueSoon
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-slate-100"
-                              }
-                            >
-                              {isOverdue ? "Overdue" : isDueSoon ? "Due Soon" : "Scheduled"}
+                            <Badge variant="outline" className={statusColor}>
+                              {plan.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -538,7 +518,7 @@ export default function VehicleDetail() {
                         </TableRow>
                       );
                     })}
-                  {maintenancePlans.filter((p) => p.status === "Active").length === 0 && (
+                  {vehiclePlans.filter((p) => p.status !== "Suspended").length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">
                         No active maintenance plans

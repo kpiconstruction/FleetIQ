@@ -18,32 +18,21 @@ Deno.serve(async (req) => {
     const endDate = new Date(dateRangeEnd);
     const now = new Date();
 
-    // Fetch all required data using service role for performance
-    const [vehicles, maintenancePlans, maintenanceTemplates, workOrders, serviceRecords] = await Promise.all([
-      base44.asServiceRole.entities.Vehicle.list(),
-      base44.asServiceRole.entities.MaintenancePlan.list(),
-      base44.asServiceRole.entities.MaintenanceTemplate.list(),
+    // Get enriched maintenance plan schedule
+    const scheduleResponse = await base44.asServiceRole.functions.invoke('getMaintenancePlanSchedule', {
+      stateFilter,
+      functionClassFilter,
+      ownershipFilter,
+      providerFilter,
+    });
+
+    const enrichedPlans = scheduleResponse.data.plans || [];
+
+    // Fetch work orders and service records
+    const [workOrders, serviceRecords] = await Promise.all([
       base44.asServiceRole.entities.MaintenanceWorkOrder.list('-raised_datetime', 2000),
       base44.asServiceRole.entities.ServiceRecord.list('-service_date', 2000),
     ]);
-
-    // Create lookup maps
-    const vehicleMap = {};
-    vehicles.forEach(v => vehicleMap[v.id] = v);
-
-    const templateMap = {};
-    maintenanceTemplates.forEach(t => templateMap[t.id] = t);
-
-    // Filter vehicles based on criteria
-    const filteredVehicles = vehicles.filter(v => {
-      if (stateFilter && stateFilter !== 'all' && v.state !== stateFilter) return false;
-      if (functionClassFilter && functionClassFilter !== 'all' && v.vehicle_function_class !== functionClassFilter) return false;
-      if (ownershipFilter && ownershipFilter !== 'all' && v.ownership_type !== ownershipFilter) return false;
-      if (providerFilter && providerFilter !== 'all' && v.hire_provider_id !== providerFilter) return false;
-      return true;
-    });
-
-    const filteredVehicleIds = new Set(filteredVehicles.map(v => v.id));
 
     // Initialize aggregates structure
     const aggregates = {
@@ -75,18 +64,11 @@ Deno.serve(async (req) => {
       onTimeCompliancePercent: 0,
     });
 
-    // Process maintenance plans and work orders
-    maintenancePlans.forEach(plan => {
-      if (!filteredVehicleIds.has(plan.vehicle_id)) return;
-      if (plan.status !== 'Active') return;
-
-      const vehicle = vehicleMap[plan.vehicle_id];
-      const template = templateMap[plan.maintenance_template_id];
-      if (!vehicle || !template) return;
-
-      const state = vehicle.state;
-      const functionClass = vehicle.vehicle_function_class;
-      const isHVNL = template.hvnl_relevance_flag;
+    // Process enriched maintenance plans
+    enrichedPlans.forEach(plan => {
+      const state = plan.vehicle.state;
+      const functionClass = plan.vehicle.vehicle_function_class;
+      const isHVNL = plan.is_hvnl_critical;
 
       // Initialize state and function class aggregates
       if (!aggregates.byState[state]) aggregates.byState[state] = initAggregate();
@@ -138,8 +120,7 @@ Deno.serve(async (req) => {
       }
 
       // Check if plan is still overdue at period end
-      const isOverdueAtPeriodEnd = plan.next_due_date && new Date(plan.next_due_date) < endDate;
-      if (isOverdueAtPeriodEnd) {
+      if (plan.is_overdue && plan.next_due_date && new Date(plan.next_due_date) < endDate) {
         // Check if not completed
         const linkedWO = workOrders.find(wo => 
           wo.maintenance_plan_id === plan.id && 
