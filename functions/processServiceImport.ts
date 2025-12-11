@@ -235,16 +235,29 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Pre-commit validation: reject if any unmapped/invalid rows exist (unless user chose to ignore them)
-      const problematicRows = importedRows.filter(r => 
-        ['Unmapped', 'VehicleNotFound', 'InvalidData'].includes(r.resolution_status)
+      // Pre-commit validation: reject if any unresolved rows exist
+      const unresolvedRows = importedRows.filter(r => 
+        ['Unmapped', 'VehicleNotFound', 'InvalidData', 'Duplicate'].includes(r.resolution_status)
       );
 
-      if (problematicRows.length > 0) {
+      if (unresolvedRows.length > 0) {
+        const statusCounts = {
+          Unmapped: unresolvedRows.filter(r => r.resolution_status === 'Unmapped').length,
+          VehicleNotFound: unresolvedRows.filter(r => r.resolution_status === 'VehicleNotFound').length,
+          InvalidData: unresolvedRows.filter(r => r.resolution_status === 'InvalidData').length,
+          Duplicate: unresolvedRows.filter(r => r.resolution_status === 'Duplicate').length,
+        };
+        
+        const statusSummary = Object.entries(statusCounts)
+          .filter(([_, count]) => count > 0)
+          .map(([status, count]) => `${count} ${status}`)
+          .join(', ');
+
         return Response.json({
           success: false,
-          error: `Cannot commit: ${problematicRows.length} rows have unresolved issues. Please resolve or ignore them.`,
-          problematicRows: problematicRows.slice(0, 10).map(r => ({
+          error: `Cannot commit: ${unresolvedRows.length} rows are unresolved (${statusSummary}). Only Ready or Ignored rows may remain.`,
+          unresolvedCounts: statusCounts,
+          unresolvedRows: unresolvedRows.slice(0, 10).map(r => ({
             id: r.id,
             status: r.resolution_status,
             notes: r.resolution_notes,
@@ -253,15 +266,15 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
 
-      // Filter rows eligible for commit
-      let eligibleRows = importedRows.filter(r => 
-        r.resolution_status === 'Mapped' || r.resolution_status === 'Ready'
-      );
+      // Filter rows eligible for commit (only Ready, ignore Ignored)
+      const eligibleRows = importedRows.filter(r => r.resolution_status === 'Ready');
 
-      // Include duplicates if requested
-      if (includeDuplicates) {
-        const duplicateRows = importedRows.filter(r => r.resolution_status === 'Duplicate');
-        eligibleRows = [...eligibleRows, ...duplicateRows];
+      // Check if there are any rows to commit
+      if (eligibleRows.length === 0) {
+        return Response.json({
+          success: false,
+          error: 'Nothing to commit: there are no rows with status Ready.',
+        }, { status: 400 });
       }
 
       // Fetch vehicles for cost rules application
@@ -320,31 +333,68 @@ Deno.serve(async (req) => {
         serviceRecords.push(serviceRecord);
       }
 
-      // Bulk create
-      await base44.asServiceRole.entities.ServiceRecord.bulkCreate(serviceRecords);
+      // Bulk create with error handling
+      const successfulRows = [];
+      const failedRows = [];
 
-      // Update imported rows to Committed
-      for (const row of eligibleRows) {
+      try {
+        await base44.asServiceRole.entities.ServiceRecord.bulkCreate(serviceRecords);
+        successfulRows.push(...eligibleRows);
+      } catch (error) {
+        // If bulk create fails, try individual creates to identify problematic rows
+        console.error('Bulk create failed, attempting individual creates:', error);
+        
+        for (let i = 0; i < eligibleRows.length; i++) {
+          try {
+            await base44.asServiceRole.entities.ServiceRecord.create(serviceRecords[i]);
+            successfulRows.push(eligibleRows[i]);
+          } catch (rowError) {
+            console.error(`Failed to create service record for row ${eligibleRows[i].id}:`, rowError);
+            failedRows.push({
+              row: eligibleRows[i],
+              error: rowError.message
+            });
+            
+            // Mark row as invalid with error details
+            await base44.asServiceRole.entities.ImportedServiceRow.update(eligibleRows[i].id, {
+              resolution_status: 'InvalidData',
+              resolution_notes: `Commit failed: ${rowError.message}`
+            });
+          }
+        }
+      }
+
+      // Update successfully committed rows
+      for (const row of successfulRows) {
         await base44.asServiceRole.entities.ImportedServiceRow.update(row.id, {
           resolution_status: 'Committed'
         });
       }
 
-      // Update batch status
-      await base44.asServiceRole.entities.ImportBatch.update(batchId, {
-        status: 'Committed',
-        committed_by_user_id: user.id,
-        committed_at: new Date().toISOString(),
-        summary_json: {
-          ...batch.summary_json,
-          committed: serviceRecords.length,
-          committedAt: new Date().toISOString(),
-        }
-      });
+      // Only update batch to Committed if at least one row was successful
+      if (successfulRows.length > 0) {
+        await base44.asServiceRole.entities.ImportBatch.update(batchId, {
+          status: 'Committed',
+          committed_by_user_id: user.id,
+          committed_at: new Date().toISOString(),
+          summary_json: {
+            ...batch.summary_json,
+            committed: successfulRows.length,
+            failed: failedRows.length,
+            committedAt: new Date().toISOString(),
+          }
+        });
+      }
 
       return Response.json({
         success: true,
-        recordsCreated: serviceRecords.length,
+        recordsCreated: successfulRows.length,
+        failed: failedRows.length,
+        partialCommit: failedRows.length > 0,
+        failureDetails: failedRows.length > 0 ? failedRows.map(f => ({
+          asset_code: f.row.mapped_asset_code,
+          error: f.error
+        })) : undefined
       });
     }
 

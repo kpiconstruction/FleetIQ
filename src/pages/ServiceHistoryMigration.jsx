@@ -181,14 +181,30 @@ export default function ServiceHistoryMigration() {
         setCommitDialogOpen(false);
       } else {
         queryClient.invalidateQueries({ queryKey: ["importBatches"] });
+        refetchRows();
         setCommitDialogOpen(false);
-        setStep(1);
-        setSelectedBatch(null);
-        setParsedData([]);
-        setMapping({});
-        setValidatedRows([]);
+        
+        // Show success/partial success message
+        if (data.partialCommit) {
+          alert(`Partially committed: ${data.recordsCreated} records created, ${data.failed} failed. Check the grid for failed rows.`);
+        } else {
+          // Only reset if fully successful
+          setStep(1);
+          setSelectedBatch(null);
+          setParsedData([]);
+          setMapping({});
+          setValidatedRows([]);
+        }
       }
     },
+    onError: (error) => {
+      const errorData = error?.response?.data;
+      if (errorData?.unresolvedCounts) {
+        // Auto-filter to show unresolved rows
+        setStatusFilter("VehicleNotFound");
+        alert(errorData.error || "Commit failed: unresolved rows exist");
+      }
+    }
   });
 
   const handleFileUpload = async (e) => {
@@ -358,6 +374,7 @@ export default function ServiceHistoryMigration() {
       duplicate: rows.filter(r => r.resolution_status === "Duplicate").length,
       ready: rows.filter(r => r.resolution_status === "Ready").length,
       ignored: rows.filter(r => r.resolution_status === "Ignored").length,
+      unresolved: rows.filter(r => ['Unmapped', 'VehicleNotFound', 'InvalidData', 'Duplicate'].includes(r.resolution_status)).length,
     };
   }, [importedRows, validatedRows]);
 
@@ -561,6 +578,32 @@ export default function ServiceHistoryMigration() {
               <AlertDescription>
                 Processing large file in background. Check batch status in the import batches list.
                 Job ID: {jobId}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Unresolved Rows Warning */}
+          {calculatedSummary.unresolved > 0 && (
+            <Alert className="bg-rose-50 border-rose-200">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <AlertDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <strong>{calculatedSummary.unresolved} unresolved rows</strong> must be fixed or ignored before commit.
+                    <div className="text-sm mt-1">
+                      {calculatedSummary.vehicleNotFound > 0 && <span className="mr-3">• {calculatedSummary.vehicleNotFound} Vehicle Not Found</span>}
+                      {calculatedSummary.invalidData > 0 && <span className="mr-3">• {calculatedSummary.invalidData} Invalid Data</span>}
+                      {calculatedSummary.duplicate > 0 && <span className="mr-3">• {calculatedSummary.duplicate} Duplicates</span>}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatusFilter("VehicleNotFound")}
+                  >
+                    View Unresolved
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}
@@ -823,14 +866,10 @@ export default function ServiceHistoryMigration() {
 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="includeDuplicates"
-                checked={includeDuplicates}
-                onChange={(e) => setIncludeDuplicates(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <Label htmlFor="includeDuplicates">Include duplicate records in commit</Label>
+              <p className="text-sm text-slate-600">
+                {calculatedSummary.ready} rows ready to commit
+                {calculatedSummary.ignored > 0 && <span className="text-slate-400 ml-2">• {calculatedSummary.ignored} ignored</span>}
+              </p>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setStep(2)}>Back to Mapping</Button>
@@ -838,9 +877,17 @@ export default function ServiceHistoryMigration() {
                 <Button
                   onClick={() => setCommitDialogOpen(true)}
                   className="bg-indigo-600"
-                  disabled={calculatedSummary.mapped === 0 && calculatedSummary.ready === 0}
+                  disabled={calculatedSummary.ready === 0 || calculatedSummary.unresolved > 0}
+                  title={
+                    calculatedSummary.unresolved > 0 
+                      ? "Cannot commit: resolve or ignore all unresolved rows first" 
+                      : calculatedSummary.ready === 0 
+                      ? "No rows ready to commit" 
+                      : ""
+                  }
                 >
-                  Commit {calculatedSummary.mapped + calculatedSummary.ready + (includeDuplicates ? calculatedSummary.duplicate : 0)} Records
+                  {calculatedSummary.unresolved > 0 && <AlertTriangle className="w-4 h-4 mr-2" />}
+                  Commit {calculatedSummary.ready} Records
                 </Button>
               ) : (
                 <Button
@@ -863,10 +910,19 @@ export default function ServiceHistoryMigration() {
           <DialogHeader>
             <DialogTitle>Confirm Batch Commit</DialogTitle>
             <DialogDescription>
-              This will create {calculatedSummary.mapped + calculatedSummary.ready} {includeDuplicates ? `+ ${calculatedSummary.duplicate} duplicate` : ""} service records.
+              This will create {calculatedSummary.ready} service records from Ready rows.
+              {calculatedSummary.ignored > 0 && <> {calculatedSummary.ignored} ignored rows will be skipped.</>}
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          {calculatedSummary.unresolved > 0 && (
+            <Alert className="bg-rose-50 border-rose-200">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <AlertDescription className="text-rose-800">
+                Cannot commit: {calculatedSummary.unresolved} unresolved rows exist. Please resolve or ignore them first.
+              </AlertDescription>
+            </Alert>
+          )}
           {!can.commitMigrationBatch && (
             <Alert className="bg-rose-50 border-rose-200">
               <Lock className="w-4 h-4 text-rose-600" />
@@ -876,19 +932,19 @@ export default function ServiceHistoryMigration() {
             </Alert>
           )}
           <Alert>
-            <AlertTriangle className="w-4 h-4" />
+            <CheckCircle className="w-4 h-4" />
             <AlertDescription>
-              Ensure you have reviewed all mapped records. Historical data will be permanently added to Fleet IQ.
+              All rows have been validated and are ready for commit. Historical data will be permanently added to Fleet IQ.
             </AlertDescription>
           </Alert>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCommitDialogOpen(false)}>Cancel</Button>
             <Button
               onClick={handleCommit}
-              disabled={commitMutation.isPending || !can.commitMigrationBatch}
+              disabled={commitMutation.isPending || !can.commitMigrationBatch || calculatedSummary.unresolved > 0}
               className="bg-indigo-600"
             >
-              {commitMutation.isPending ? "Committing..." : "Confirm Commit"}
+              {commitMutation.isPending ? "Committing..." : `Commit ${calculatedSummary.ready} Records`}
             </Button>
           </DialogFooter>
         </DialogContent>
