@@ -29,6 +29,7 @@ import DowntimeByCauseChart from "../components/dashboard/DowntimeByCauseChart";
 import ProblemAssetsTable from "../components/dashboard/ProblemAssetsTable";
 import StandDownSummary from "../components/dashboard/StandDownSummary";
 import FleetByFunctionChart from "../components/dashboard/FleetByFunctionChart";
+import HighRiskWorkers from "../components/dashboard/HighRiskWorkers";
 
 export default function Dashboard() {
   const [stateFilter, setStateFilter] = useState("All");
@@ -64,6 +65,16 @@ export default function Dashboard() {
   const { data: serviceRecords = [] } = useQuery({
     queryKey: ["serviceRecords"],
     queryFn: () => base44.entities.ServiceRecord.list("-service_date", 200),
+  });
+
+  const { data: incidents = [] } = useQuery({
+    queryKey: ["incidents"],
+    queryFn: () => base44.entities.IncidentRecord.list("-incident_datetime", 500),
+  });
+
+  const { data: defects = [] } = useQuery({
+    queryKey: ["defects"],
+    queryFn: () => base44.entities.PrestartDefect.list("-reported_at", 500),
   });
 
   const filteredVehicles = useMemo(() => {
@@ -308,8 +319,21 @@ export default function Dashboard() {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-6 mb-8">
         <ProblemAssetsTable vehicles={problemAssets} />
+      </div>
+
+      {/* High-Risk Workers Section */}
+      <div className="grid grid-cols-1 gap-6">
+        <HighRiskWorkers
+          prestarts={prestarts}
+          incidents={incidents}
+          defects={defects}
+          vehicles={filteredVehicles}
+          stateFilter={stateFilter}
+          functionClassFilter={functionClassFilter}
+          ownershipFilter={ownershipFilter}
+        />
       </div>
     </div>
   );
