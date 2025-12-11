@@ -621,16 +621,30 @@ export default function MaintenanceOperationalControl() {
                               : "-")}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              wo.status === "InProgress"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : "bg-amber-50 text-amber-700 border-amber-200"
-                            }
-                          >
-                            {wo.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={
+                                wo.status === "InProgress"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : "bg-amber-50 text-amber-700 border-amber-200"
+                              }
+                            >
+                              {wo.status}
+                            </Badge>
+                            {wo.linked_prestart_defect_id && (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                                Defect
+                              </Badge>
+                            )}
+                            {wo.linked_incident_id && (
+                              <Link to={createPageUrl(`IncidentDetail?id=${wo.linked_incident_id}`)}>
+                                <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 text-xs cursor-pointer hover:bg-rose-100">
+                                  Incident
+                                </Badge>
+                              </Link>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {isHVNL && (
