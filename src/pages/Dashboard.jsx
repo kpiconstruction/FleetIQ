@@ -30,6 +30,7 @@ import ProblemAssetsTable from "../components/dashboard/ProblemAssetsTable";
 import StandDownSummary from "../components/dashboard/StandDownSummary";
 import FleetByFunctionChart from "../components/dashboard/FleetByFunctionChart";
 import HighRiskWorkers from "../components/dashboard/HighRiskWorkers";
+import RiskAlertBanner from "../components/dashboard/RiskAlertBanner";
 
 export default function Dashboard() {
   const [stateFilter, setStateFilter] = useState("All");
@@ -75,6 +76,11 @@ export default function Dashboard() {
   const { data: defects = [] } = useQuery({
     queryKey: ["defects"],
     queryFn: () => base44.entities.PrestartDefect.list("-reported_at", 500),
+  });
+
+  const { data: riskStatuses = [] } = useQuery({
+    queryKey: ["riskStatuses"],
+    queryFn: () => base44.entities.WorkerRiskStatus.list("-last_updated_datetime", 200),
   });
 
   const filteredVehicles = useMemo(() => {
@@ -204,6 +210,9 @@ export default function Dashboard() {
           Refresh
         </Button>
       </div>
+
+      {/* Risk Alert Banner */}
+      <RiskAlertBanner riskStatuses={riskStatuses} />
 
       {/* Filters */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 mb-8">
