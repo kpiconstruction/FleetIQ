@@ -24,6 +24,13 @@ Deno.serve(async (req) => {
 
     // Handle single row update
     if (action === 'updateRow') {
+      if (!hasPermission(user, 'validateMigrationData')) {
+        return Response.json({ 
+          error: 'Forbidden: You do not have permission to edit migration data',
+          requiredRole: 'FleetAdmin or WorkshopOps'
+        }, { status: 403 });
+      }
+
       if (!rowId || !updateData) {
         return Response.json({ error: 'Missing rowId or updateData' }, { status: 400 });
       }
@@ -37,6 +44,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'validateAndMap') {
+      if (!hasPermission(user, 'validateMigrationData')) {
+        return Response.json({ 
+          error: 'Forbidden: You do not have permission to validate migration data',
+          requiredRole: 'FleetAdmin or WorkshopOps'
+        }, { status: 403 });
+      }
+
       const rowCount = rows.length;
       const LARGE_FILE_THRESHOLD = 5000;
 
