@@ -23,6 +23,7 @@ import ServiceHistoryMigration from './pages/ServiceHistoryMigration';
 import NotificationSettings from './pages/NotificationSettings';
 import IncidentDetail from './pages/IncidentDetail';
 import AutomationControl from './pages/AutomationControl';
+import FuelImport from './pages/FuelImport';
 import __Layout from './Layout.jsx';
 
 
@@ -52,6 +53,7 @@ export const PAGES = {
     "NotificationSettings": NotificationSettings,
     "IncidentDetail": IncidentDetail,
     "AutomationControl": AutomationControl,
+    "FuelImport": FuelImport,
 }
 
 export const pagesConfig = {
