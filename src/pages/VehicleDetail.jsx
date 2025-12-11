@@ -27,7 +27,6 @@ import { usePermissions } from "../components/auth/usePermissions";
 import WorkOrderForm from "../components/maintenance/WorkOrderForm";
 import WorkOrderCompletionDialog from "../components/maintenance/WorkOrderCompletionDialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
