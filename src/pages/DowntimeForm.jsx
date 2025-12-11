@@ -29,12 +29,14 @@ export default function DowntimeForm() {
     end_datetime: "",
     downtime_hours: "",
     reason: "",
+    cause_category: "",
     caused_by: "",
     chargeable_to: "",
     stand_down_expected: false,
     stand_down_confirmed: false,
     stand_down_credit_ref: "",
     linked_project_code: "",
+    linked_work_order_id: "",
     notes: "",
   });
 
@@ -123,6 +125,25 @@ export default function DowntimeForm() {
                   <SelectItem value="Accident">Accident</SelectItem>
                   <SelectItem value="ClientHold">Client Hold</SelectItem>
                   <SelectItem value="AwaitingParts">Awaiting Parts</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cause_category">Cause Category</Label>
+              <Select
+                value={formData.cause_category}
+                onValueChange={(v) => handleChange("cause_category", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PreventativeService">Preventative Service</SelectItem>
+                  <SelectItem value="CorrectiveRepair">Corrective Repair</SelectItem>
+                  <SelectItem value="HireProviderDelay">Hire Provider Delay</SelectItem>
+                  <SelectItem value="PartsDelay">Parts Delay</SelectItem>
+                  <SelectItem value="IncidentRepair">Incident Repair</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -140,6 +140,30 @@ export default function MaintenanceOverview() {
     },
   });
 
+  // Fetch downtime aggregates from backend
+  const { data: downtimeData, isLoading: downtimeLoading } = useQuery({
+    queryKey: [
+      "downtimeAggregates",
+      filters.dateRangeStart,
+      filters.dateRangeEnd,
+      filters.state,
+      filters.functionClass,
+      filters.ownership,
+      filters.provider,
+    ],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getDowntimeAggregates", {
+        dateRangeStart: filters.dateRangeStart,
+        dateRangeEnd: filters.dateRangeEnd,
+        stateFilter: filters.state,
+        functionClassFilter: filters.functionClass,
+        ownershipFilter: filters.ownership,
+        providerFilter: filters.provider,
+      });
+      return response.data;
+    },
+  });
+
   // Create lookup maps
   const vehicleMap = useMemo(() => {
     return vehicles.reduce((acc, v) => {
@@ -369,7 +393,45 @@ export default function MaintenanceOverview() {
     ];
   }, [workOrders, filteredVehicleIds, filters]);
 
-  const isLoading = vehiclesLoading || complianceLoading || costLoading;
+  const isLoading = vehiclesLoading || complianceLoading || costLoading || downtimeLoading;
+
+  // Prepare downtime by cause category data for chart
+  const downtimeByCauseData = useMemo(() => {
+    if (!downtimeData?.byCauseCategory) return [];
+    return Object.entries(downtimeData.byCauseCategory)
+      .filter(([_, data]) => data.downtime_hours > 0)
+      .map(([category, data]) => ({
+        name: category.replace(/([A-Z])/g, ' $1').trim(),
+        value: Math.round(data.downtime_hours),
+        percentage: Math.round(data.percentage),
+      }));
+  }, [downtimeData]);
+
+  // Prepare downtime by function class data for chart
+  const downtimeByClassData = useMemo(() => {
+    if (!downtimeData?.byFunctionClass) return [];
+    return downtimeData.byFunctionClass
+      .filter(d => d.downtime_hours > 0)
+      .slice(0, 10)
+      .map(d => ({
+        name: d.name,
+        hours: Math.round(d.downtime_hours),
+        events: d.event_count,
+      }));
+  }, [downtimeData]);
+
+  // Prepare downtime by hire provider data for chart
+  const downtimeByProviderData = useMemo(() => {
+    if (!downtimeData?.byHireProvider) return [];
+    return downtimeData.byHireProvider
+      .filter(d => d.downtime_hours > 0)
+      .slice(0, 10)
+      .map(d => ({
+        name: d.name,
+        hours: Math.round(d.downtime_hours),
+        events: d.event_count,
+      }));
+  }, [downtimeData]);
 
   // Prepare cost by class data for chart
   const costByClassData = useMemo(() => {
@@ -934,6 +996,123 @@ export default function MaintenanceOverview() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Downtime Attribution Section */}
+      {!downtimeLoading && downtimeData && (
+        <>
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Downtime by Cause Category */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                Downtime by Cause Category
+              </h2>
+              {downtimeByCauseData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={downtimeByCauseData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percentage }) => `${name} (${percentage}%)`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {downtimeByCauseData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                              <p className="font-semibold">{payload[0].name}</p>
+                              <p className="text-sm text-slate-600 dark:text-slate-400">
+                                {payload[0].value} hours ({payload[0].payload.percentage}%)
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-center text-slate-500 py-16">No downtime data</p>
+              )}
+            </div>
+
+            {/* Downtime by Vehicle Function Class */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                Downtime by Vehicle Class
+              </h2>
+              {downtimeByClassData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={downtimeByClassData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" stroke="#64748b" />
+                    <YAxis dataKey="name" type="category" stroke="#64748b" width={120} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                              <p className="font-semibold">{payload[0].payload.name}</p>
+                              <p className="text-sm text-slate-600 dark:text-slate-400">
+                                {payload[0].value} hours ({payload[0].payload.events} events)
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar dataKey="hours" fill="#f59e0b" name="Downtime Hours" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-center text-slate-500 py-16">No downtime data</p>
+              )}
+            </div>
+          </div>
+
+          {/* Downtime by Hire Provider */}
+          {downtimeByProviderData.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 mt-6">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                Downtime by Hire Provider
+              </h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={downtimeByProviderData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="name" stroke="#64748b" angle={-45} textAnchor="end" height={100} />
+                  <YAxis stroke="#64748b" />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                            <p className="font-semibold">{payload[0].payload.name}</p>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                              {payload[0].value} hours ({payload[0].payload.events} events)
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="hours" fill="#8b5cf6" name="Downtime Hours" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
       )}
 
       {/* HVNL Risk Leaderboard */}
