@@ -1,6 +1,8 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { usePermissions } from "../components/auth/usePermissions";
+import WorkOrderForm from "../components/maintenance/WorkOrderForm";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils";
 import { format } from "date-fns";
@@ -14,6 +16,7 @@ import {
   XCircle,
   AlertTriangle,
   Image as ImageIcon,
+  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +24,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function PrestartDetail() {
+  const { can } = usePermissions();
+  const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const prestartId = urlParams.get("id");
+  const [workOrderDialogDefect, setWorkOrderDialogDefect] = useState(null);
 
   const { data: prestart, isLoading: prestartLoading } = useQuery({
     queryKey: ["prestart", prestartId],
@@ -55,6 +61,22 @@ export default function PrestartDetail() {
     queryFn: () => base44.entities.PrestartDefect.filter({ prestart_id: prestartId }),
     enabled: !!prestartId,
   });
+
+  const createWorkOrderMutation = useMutation({
+    mutationFn: (data) => base44.entities.MaintenanceWorkOrder.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenanceWorkOrders"] });
+      setWorkOrderDialogDefect(null);
+    },
+  });
+
+  const submitDefectWorkOrder = (data) => {
+    const enrichedData = {
+      ...data,
+      notes_internal: `Raised from Prestart Defect: ${workOrderDialogDefect.defect_description}\n\n${data.notes_internal || ""}`,
+    };
+    createWorkOrderMutation.mutate(enrichedData);
+  };
 
   // Group items by category
   const itemsByCategory = prestartItems.reduce((acc, item) => {
@@ -290,7 +312,18 @@ export default function PrestartDetail() {
                       {defect.status}
                     </Badge>
                   </div>
-                  <p className="text-slate-900 font-medium">{defect.defect_description}</p>
+                  <p className="text-slate-900 font-medium mb-3">{defect.defect_description}</p>
+                  {defect.status === "Open" && can.createWorkOrder && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setWorkOrderDialogDefect(defect)}
+                      className="text-xs"
+                    >
+                      <Wrench className="w-3 h-3 mr-1" />
+                      Create Work Order
+                    </Button>
+                  )}
                   {defect.rectification_notes && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
                       <p className="text-sm text-slate-500">Rectification notes:</p>
@@ -308,6 +341,24 @@ export default function PrestartDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Work Order from Defect Dialog */}
+      {workOrderDialogDefect && (
+        <WorkOrderForm
+          open={!!workOrderDialogDefect}
+          onOpenChange={() => setWorkOrderDialogDefect(null)}
+          vehicleId={prestart.vehicle_id}
+          vehicle={vehicle}
+          defaultValues={{
+            work_order_type: "DefectRepair",
+            raised_from: "PrestartDefect",
+            priority: workOrderDialogDefect.severity === "Critical" || workOrderDialogDefect.severity === "High" ? "SafetyCritical" : "Major",
+            notes_for_provider: workOrderDialogDefect.defect_description,
+          }}
+          onSubmit={submitDefectWorkOrder}
+          isSubmitting={createWorkOrderMutation.isPending}
+        />
+      )}
     </div>
   );
 }
