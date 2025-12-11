@@ -115,6 +115,31 @@ export default function MaintenanceOverview() {
     },
   });
 
+  // Fetch cost aggregates from backend
+  const { data: costData, isLoading: costLoading } = useQuery({
+    queryKey: [
+      "maintenanceCost",
+      filters.dateRangeStart,
+      filters.dateRangeEnd,
+      filters.state,
+      filters.functionClass,
+      filters.ownership,
+      filters.provider,
+    ],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("getMaintenanceCostAggregates", {
+        dateRangeStart: filters.dateRangeStart,
+        dateRangeEnd: filters.dateRangeEnd,
+        stateFilter: filters.state,
+        functionClassFilter: filters.functionClass,
+        ownershipFilter: filters.ownership,
+        providerFilter: filters.provider,
+        repeatRepairThreshold: 3,
+      });
+      return response.data;
+    },
+  });
+
   // Create lookup maps
   const vehicleMap = useMemo(() => {
     return vehicles.reduce((acc, v) => {
@@ -344,7 +369,19 @@ export default function MaintenanceOverview() {
     ];
   }, [workOrders, filteredVehicleIds, filters]);
 
-  const isLoading = vehiclesLoading || complianceLoading;
+  const isLoading = vehiclesLoading || complianceLoading || costLoading;
+
+  // Prepare cost by class data for chart
+  const costByClassData = useMemo(() => {
+    if (!costData?.byClass) return [];
+    return Object.entries(costData.byClass)
+      .map(([className, data]) => ({
+        className,
+        totalCost: Math.round(data.totalCost),
+        costPerAsset: Math.round(data.costPerAsset),
+      }))
+      .sort((a, b) => b.totalCost - a.totalCost);
+  }, [costData]);
 
   // Prepare compliance by state data for chart
   const complianceByStateData = useMemo(() => {
@@ -765,6 +802,139 @@ export default function MaintenanceOverview() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Cost by Vehicle Function Class */}
+      {!costLoading && costData && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 mt-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+            Maintenance Cost by Vehicle Function Class
+          </h2>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={costByClassData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="className" stroke="#64748b" angle={-45} textAnchor="end" height={100} />
+              <YAxis stroke="#64748b" />
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+                        <p className="font-semibold">{data.className}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          Total: ${data.totalCost.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Per Asset: ${data.costPerAsset.toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Legend />
+              <Bar dataKey="totalCost" fill="#6366f1" name="Total Cost ($)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* High-Cost Assets Table */}
+      {!costLoading && costData?.assetAggregates && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mt-6">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-indigo-600" />
+                  High-Cost Assets
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Top maintenance spenders
+                </p>
+              </div>
+              {costData.summary?.repeat_repair_assets > 0 && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                  {costData.summary.repeat_repair_assets} Repeat Repairs
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50 dark:bg-slate-900/50">
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead>Asset Code</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead>Total Cost</TableHead>
+                  <TableHead>Cost/1000km</TableHead>
+                  <TableHead>Cost/Hour</TableHead>
+                  <TableHead>Services</TableHead>
+                  <TableHead>Flags</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {costData.assetAggregates.slice(0, 20).map((asset, index) => (
+                  <TableRow
+                    key={asset.vehicle_id}
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b dark:border-slate-700 ${
+                      asset.repeat_repair_flag ? "bg-amber-50/30 dark:bg-amber-900/10" : ""
+                    }`}
+                  >
+                    <TableCell className="font-semibold text-slate-400">{index + 1}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        to={createPageUrl(`VehicleDetail?id=${asset.vehicle_id}`)}
+                        className="text-indigo-600 hover:underline dark:text-indigo-400"
+                      >
+                        {asset.asset_code}
+                      </Link>
+                      <p className="text-xs text-slate-500">{asset.rego}</p>
+                    </TableCell>
+                    <TableCell className="text-sm">{asset.vehicle_function_class}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-slate-100">
+                        {asset.state}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-semibold text-indigo-600">
+                      ${asset.total_cost.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {asset.total_km > 0 ? `$${asset.cost_per_1000km}` : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {asset.total_hours > 0 ? `$${asset.cost_per_hour}` : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-slate-50">
+                        {asset.service_count}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {asset.repeat_repair_flag && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          Repeat ({asset.repeat_repair_count})
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {costData.assetAggregates.length > 20 && (
+            <div className="p-4 border-t border-slate-100 dark:border-slate-700 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Showing top 20 of {costData.assetAggregates.length} assets
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* HVNL Risk Leaderboard */}
       <div className="mt-6">
