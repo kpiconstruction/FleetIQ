@@ -19,6 +19,7 @@ import MaintenanceOverview from './pages/MaintenanceOverview';
 import MaintenanceOperationalControl from './pages/MaintenanceOperationalControl';
 import HireProviderPerformance from './pages/HireProviderPerformance';
 import HireProviderDetail from './pages/HireProviderDetail';
+import ServiceHistoryMigration from './pages/ServiceHistoryMigration';
 import __Layout from './Layout.jsx';
 
 
@@ -44,6 +45,7 @@ export const PAGES = {
     "MaintenanceOperationalControl": MaintenanceOperationalControl,
     "HireProviderPerformance": HireProviderPerformance,
     "HireProviderDetail": HireProviderDetail,
+    "ServiceHistoryMigration": ServiceHistoryMigration,
 }
 
 export const pagesConfig = {

@@ -35,6 +35,7 @@ const navItems = [
   { name: "Maintenance Control", icon: Wrench, page: "MaintenanceOperationalControl" },
   { name: "Maintenance Planner", icon: Wrench, page: "MaintenancePlanner" },
   { name: "Provider Performance", icon: Building2, page: "HireProviderPerformance" },
+  { name: "Service Migration", icon: FileText, page: "ServiceHistoryMigration" },
   { name: "Service", icon: Wrench, page: "Service" },
   { name: "Downtime", icon: Clock, page: "Downtime" },
   { name: "Usage", icon: Activity, page: "Usage" },
