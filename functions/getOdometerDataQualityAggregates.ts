@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { getBestOdometerSnapshot } from './services/odometerSnapshot.js';
+import { getCached, setCached } from './services/aggregateCache.js';
 
 Deno.serve(async (req) => {
   try {
@@ -17,16 +18,25 @@ Deno.serve(async (req) => {
       depotFilter = 'all',
     } = body;
 
-    // Fetch all vehicles
-    const vehicles = await base44.asServiceRole.entities.Vehicle.list();
+    // Check cache first
+    const cacheKey = { stateFilter, functionClassFilter, depotFilter };
+    const cached = getCached('getOdometerDataQualityAggregates', cacheKey);
+    if (cached) {
+      return Response.json(cached);
+    }
 
-    // Filter vehicles
-    const filteredVehicles = vehicles.filter(v => {
-      if (stateFilter !== 'all' && v.state !== stateFilter) return false;
-      if (functionClassFilter !== 'all' && v.vehicle_function_class !== functionClassFilter) return false;
-      if (depotFilter !== 'all' && v.primary_depot !== depotFilter) return false;
-      return true;
-    });
+    // Build vehicle filter query
+    const vehicleQuery = {};
+    if (stateFilter !== 'all') vehicleQuery.state = stateFilter;
+    if (functionClassFilter !== 'all') vehicleQuery.vehicle_function_class = functionClassFilter;
+    if (depotFilter !== 'all') vehicleQuery.primary_depot = depotFilter;
+
+    // Fetch filtered vehicles
+    const vehicles = Object.keys(vehicleQuery).length > 0
+      ? await base44.asServiceRole.entities.Vehicle.filter(vehicleQuery)
+      : await base44.asServiceRole.entities.Vehicle.list();
+
+    const filteredVehicles = vehicles;
 
     // Get odometer snapshots for all filtered vehicles
     const vehicleSnapshots = [];
@@ -162,7 +172,7 @@ Deno.serve(async (req) => {
       }
     });
 
-    return Response.json({
+    const result = {
       success: true,
       summary: {
         total_vehicles: totalVehicles,
@@ -182,7 +192,12 @@ Deno.serve(async (req) => {
         return b.exception_types.length - a.exception_types.length;
       }),
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Cache for 5 minutes
+    setCached('getOdometerDataQualityAggregates', cacheKey, result, 5 * 60 * 1000);
+
+    return Response.json(result);
 
   } catch (error) {
     console.error('Odometer data quality aggregates error:', error);
