@@ -9,7 +9,7 @@ This repository contains the **frozen backend specification and export layer** f
 ## Status
 
 - **Current State:** Backend model and behaviour **frozen at v1.0** for Trae migration.
-- **Source of Truth:** `docs/KPI-FleetIQ-Backend-Spec.md`
+- **Source of Truth:** `KPI-FleetIQ-Backend-Spec.md`
 - **Changes Allowed:**
   - Bug fixes and data corrections only.
   - No breaking changes to export contracts without versioning.
@@ -267,7 +267,7 @@ These endpoints are the **integration surface for the Trae-backed implementation
 
 The full backend model and rules are documented in:
 
-- `docs/KPI-FleetIQ-Backend-Spec.md`
+- `KPI-FleetIQ-Backend-Spec.md`
 
 That document defines:
 
