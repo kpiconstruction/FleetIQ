@@ -1,5 +1,5 @@
-if (-not $env:BASE44_TOKEN -or -not $env:BASE44_APP_ID -or -not $env:BASE44_SERVER_URL) {
-  Write-Error "Set BASE44_TOKEN, BASE44_APP_ID, BASE44_SERVER_URL env vars"
+if (-not $env:EXPORT_ADMIN_TOKEN) {
+  Write-Error "Set EXPORT_ADMIN_TOKEN env var"
   exit 1
 }
 

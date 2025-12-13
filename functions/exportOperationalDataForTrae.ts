@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { hasPermission } from './checkPermissions.js';
+import { getUserFromRequest } from './services/auth.ts';
+import { listDowntime, listUsage, listPrestarts, listDefects, listIncidents, listFuelTransactions } from './services/repositories.ts';
 
 /**
  * Export Operational Data for Trae Migration
@@ -9,9 +10,7 @@ import { hasPermission } from './checkPermissions.js';
  */
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-
-    const user = await base44.auth.me();
+    const user = await getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -39,21 +38,9 @@ Deno.serve(async (req) => {
 
     switch (entityType) {
       case 'downtime': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let events = await base44.asServiceRole.entities.AssetDowntimeEvent.filter(query, '-start_datetime', 10000);
-        
-        if (dateRangeStart || dateRangeEnd) {
-          events = events.filter(e => {
-            const startDate = new Date(e.start_datetime);
-            if (dateRangeStart && startDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && startDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = events.length;
-        data = events.slice(offset, offset + limit).map(e => ({
+        const { total: dTotal, rows } = await listDowntime(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = dTotal;
+        data = rows.map(e => ({
           id: e.id,
           vehicle_id: e.vehicle_id,
           hire_provider_id: e.hire_provider_id,
@@ -74,21 +61,9 @@ Deno.serve(async (req) => {
       }
 
       case 'usage': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let records = await base44.asServiceRole.entities.UsageRecord.filter(query, '-usage_date', 10000);
-        
-        if (dateRangeStart || dateRangeEnd) {
-          records = records.filter(r => {
-            const usageDate = new Date(r.usage_date);
-            if (dateRangeStart && usageDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && usageDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = records.length;
-        data = records.slice(offset, offset + limit).map(r => ({
+        const { total: uTotal, rows } = await listUsage(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = uTotal;
+        data = rows.map(r => ({
           id: r.id,
           vehicle_id: r.vehicle_id,
           usage_date: r.usage_date,
@@ -109,21 +84,9 @@ Deno.serve(async (req) => {
       }
 
       case 'prestarts': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let prestarts = await base44.asServiceRole.entities.PrestartCheck.filter(query, '-prestart_datetime', 10000);
-        
-        if (dateRangeStart || dateRangeEnd) {
-          prestarts = prestarts.filter(p => {
-            const prestartDate = new Date(p.prestart_datetime);
-            if (dateRangeStart && prestartDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && prestartDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = prestarts.length;
-        data = prestarts.slice(offset, offset + limit).map(p => ({
+        const { total: pTotal, rows } = await listPrestarts(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = pTotal;
+        data = rows.map(p => ({
           id: p.id,
           vehicle_id: p.vehicle_id,
           prestart_type: p.prestart_type,
@@ -147,21 +110,9 @@ Deno.serve(async (req) => {
       }
 
       case 'defects': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let defects = await base44.asServiceRole.entities.PrestartDefect.filter(query, '-reported_at', 10000);
-        
-        if (dateRangeStart || dateRangeEnd) {
-          defects = defects.filter(d => {
-            const reportedDate = new Date(d.reported_at);
-            if (dateRangeStart && reportedDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && reportedDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = defects.length;
-        data = defects.slice(offset, offset + limit).map(d => ({
+        const { total: dfTotal, rows } = await listDefects(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = dfTotal;
+        data = rows.map(d => ({
           id: d.id,
           prestart_id: d.prestart_id,
           vehicle_id: d.vehicle_id,
@@ -177,21 +128,9 @@ Deno.serve(async (req) => {
       }
 
       case 'incidents': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let incidents = await base44.asServiceRole.entities.IncidentRecord.filter(query, '-incident_datetime', 10000);
-        
-        if (dateRangeStart || dateRangeEnd) {
-          incidents = incidents.filter(i => {
-            const incidentDate = new Date(i.incident_datetime);
-            if (dateRangeStart && incidentDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && incidentDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = incidents.length;
-        data = incidents.slice(offset, offset + limit).map(i => ({
+        const { total: inTotal, rows } = await listIncidents(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = inTotal;
+        data = rows.map(i => ({
           id: i.id,
           incident_datetime: i.incident_datetime,
           vehicle_id: i.vehicle_id,
@@ -214,21 +153,9 @@ Deno.serve(async (req) => {
       }
 
       case 'fuelTransactions': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let transactions = await base44.asServiceRole.entities.FuelTransaction.filter(query, '-transaction_datetime', 10000);
-        
-        if (dateRangeStart || dateRangeEnd) {
-          transactions = transactions.filter(t => {
-            const transactionDate = new Date(t.transaction_datetime);
-            if (dateRangeStart && transactionDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && transactionDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = transactions.length;
-        data = transactions.slice(offset, offset + limit).map(t => ({
+        const { total: fTotal, rows } = await listFuelTransactions(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = fTotal;
+        data = rows.map(t => ({
           id: t.id,
           vehicle_id: t.vehicle_id,
           transaction_datetime: t.transaction_datetime,

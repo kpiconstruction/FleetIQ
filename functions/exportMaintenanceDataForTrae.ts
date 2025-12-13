@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { hasPermission } from './checkPermissions.js';
+import { getUserFromRequest } from './services/auth.ts';
+import { listMaintenanceTemplates, listMaintenancePlans, listWorkOrders, listServiceRecords } from './services/repositories.ts';
 
 /**
  * Export Maintenance Data for Trae Migration
@@ -9,9 +10,7 @@ import { hasPermission } from './checkPermissions.js';
  */
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-
-    const user = await base44.auth.me();
+    const user = await getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -39,9 +38,9 @@ Deno.serve(async (req) => {
 
     switch (entityType) {
       case 'templates': {
-        const templates = await base44.asServiceRole.entities.MaintenanceTemplate.list();
-        total = templates.length;
-        data = templates.slice(offset, offset + limit).map(t => ({
+        const { total: tTotal, rows } = await listMaintenanceTemplates(offset, limit);
+        total = tTotal;
+        data = rows.map(t => ({
           id: t.id,
           name: t.name,
           vehicle_function_class: t.vehicle_function_class,
@@ -61,10 +60,9 @@ Deno.serve(async (req) => {
       }
 
       case 'plans': {
-        const query = vehicleId ? { vehicle_id: vehicleId } : {};
-        const plans = await base44.asServiceRole.entities.MaintenancePlan.filter(query, '-updated_date', 10000);
-        total = plans.length;
-        data = plans.slice(offset, offset + limit).map(p => ({
+        const { total: pTotal, rows } = await listMaintenancePlans(vehicleId, offset, limit);
+        total = pTotal;
+        data = rows.map(p => ({
           id: p.id,
           vehicle_id: p.vehicle_id,
           maintenance_template_id: p.maintenance_template_id,
@@ -80,22 +78,9 @@ Deno.serve(async (req) => {
       }
 
       case 'workOrders': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let workOrders = await base44.asServiceRole.entities.MaintenanceWorkOrder.filter(query, '-raised_datetime', 10000);
-        
-        // Date filter
-        if (dateRangeStart || dateRangeEnd) {
-          workOrders = workOrders.filter(wo => {
-            const raisedDate = new Date(wo.raised_datetime);
-            if (dateRangeStart && raisedDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && raisedDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = workOrders.length;
-        data = workOrders.slice(offset, offset + limit).map(wo => ({
+        const { total: wTotal, rows } = await listWorkOrders(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = wTotal;
+        data = rows.map(wo => ({
           id: wo.id,
           vehicle_id: wo.vehicle_id,
           maintenance_plan_id: wo.maintenance_plan_id,
@@ -122,22 +107,9 @@ Deno.serve(async (req) => {
       }
 
       case 'serviceRecords': {
-        const query = {};
-        if (vehicleId) query.vehicle_id = vehicleId;
-        let services = await base44.asServiceRole.entities.ServiceRecord.filter(query, '-service_date', 10000);
-        
-        // Date filter
-        if (dateRangeStart || dateRangeEnd) {
-          services = services.filter(s => {
-            const serviceDate = new Date(s.service_date);
-            if (dateRangeStart && serviceDate < new Date(dateRangeStart)) return false;
-            if (dateRangeEnd && serviceDate > new Date(dateRangeEnd)) return false;
-            return true;
-          });
-        }
-        
-        total = services.length;
-        data = services.slice(offset, offset + limit).map(s => ({
+        const { total: sTotal, rows } = await listServiceRecords(vehicleId, dateRangeStart, dateRangeEnd, offset, limit);
+        total = sTotal;
+        data = rows.map(s => ({
           id: s.id,
           vehicle_id: s.vehicle_id,
           service_date: s.service_date,

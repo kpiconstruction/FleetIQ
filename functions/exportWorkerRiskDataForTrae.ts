@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { hasPermission } from './checkPermissions.js';
+import { getUserFromRequest } from './services/auth.ts';
+import { listWorkerRiskStatuses } from './services/repositories.ts';
 
 /**
  * Export Worker Risk Data for Trae Migration
@@ -9,9 +10,7 @@ import { hasPermission } from './checkPermissions.js';
  */
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-
-    const user = await base44.auth.me();
+    const user = await getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -31,18 +30,8 @@ Deno.serve(async (req) => {
       riskLevelFilter = null,
     } = body;
 
-    // Build query
-    const query = {};
-    if (riskLevelFilter) query.current_risk_level = riskLevelFilter;
-
-    // Fetch worker risk statuses
-    const allWorkers = await base44.asServiceRole.entities.WorkerRiskStatus.filter(query, '-last_updated_datetime', 10000);
-    
-    // Apply paging
-    const paginatedWorkers = allWorkers.slice(offset, offset + limit);
-
-    // Normalize for Trae
-    const normalizedWorkers = paginatedWorkers.map(w => ({
+    const { total, rows } = await listWorkerRiskStatuses(riskLevelFilter, offset, limit);
+    const normalizedWorkers = rows.map(w => ({
       id: w.id,
       worker_name: w.worker_name,
       worker_external_id: w.worker_external_id,
@@ -69,8 +58,8 @@ Deno.serve(async (req) => {
         offset,
         limit,
         returned: normalizedWorkers.length,
-        total: allWorkers.length,
-        hasMore: (offset + limit) < allWorkers.length,
+        total,
+        hasMore: (offset + limit) < total,
       },
       timestamp: new Date().toISOString(),
     });

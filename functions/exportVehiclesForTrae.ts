@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { hasPermission } from './checkPermissions.js';
+import { getUserFromRequest } from './services/auth.ts';
+import { listVehicles } from './services/repositories.ts';
 
 /**
  * Export Vehicles for Trae Migration
@@ -9,9 +10,7 @@ import { hasPermission } from './checkPermissions.js';
  */
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-
-    const user = await base44.auth.me();
+    const user = await getUserFromRequest(req);
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -31,21 +30,8 @@ Deno.serve(async (req) => {
       stateFilter = null,
       ownershipFilter = null,
     } = body;
-
-    // Build query
-    const query = {};
-    if (stateFilter) query.state = stateFilter;
-    if (ownershipFilter) query.ownership_type = ownershipFilter;
-
-    // Fetch vehicles
-    const allVehicles = await base44.asServiceRole.entities.Vehicle.filter(query, 'asset_code', 10000);
-    
-    // Apply paging
-    const paginatedVehicles = allVehicles.slice(offset, offset + limit);
-
-    // Normalize for Trae
-    const normalizedVehicles = paginatedVehicles.map(v => ({
-      // Stable IDs
+    const { total, rows } = await listVehicles(stateFilter, ownershipFilter, offset, limit);
+    const normalizedVehicles = rows.map(v => ({
       id: v.id,
       asset_code: v.asset_code,
       rego: v.rego,
@@ -95,8 +81,8 @@ Deno.serve(async (req) => {
         offset,
         limit,
         returned: normalizedVehicles.length,
-        total: allVehicles.length,
-        hasMore: (offset + limit) < allVehicles.length,
+        total,
+        hasMore: (offset + limit) < total,
       },
       timestamp: new Date().toISOString(),
     });
