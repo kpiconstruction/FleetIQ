@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "migrate": "node src/migrate.js"
+    "migrate": "node src/migrate.js",
+    "export:all": "node scripts/export-run.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
