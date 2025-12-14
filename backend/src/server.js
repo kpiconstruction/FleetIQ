@@ -16,6 +16,7 @@ const port = process.env.PORT ? Number(process.env.PORT) : 8001;
 fastify.listen({ port, host: '0.0.0.0' })
   .then(() => {
     console.log(`Fleet IQ backend listening on ${port}`);
+    console.log(`DB_HOST=${process.env.DB_HOST || 'unset'} DB_PORT=${process.env.DB_PORT || 'unset'} DB_NAME=${process.env.DB_NAME || 'unset'} DB_USER=${process.env.DB_USER || 'unset'}`);
   })
   .catch((err) => {
     console.error(err.message);
