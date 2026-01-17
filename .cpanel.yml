@@ -1,0 +1,13 @@
+---
+hooks:
+  build:
+    - npm install
+    - npm run build
+  start:
+    - npm start
+  stop:
+    - echo "Stopping app..."
+  restart:
+    - npm restart
+  post_deploy:
+    - echo "Deployment complete."
