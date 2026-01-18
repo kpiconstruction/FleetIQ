@@ -3,6 +3,8 @@ hooks:
   build:
     - npm install
     - npm run build
+    - export DEPLOYPATH=/home/USERNAME/public_html
+    - /bin/cp -R dist/* $DEPLOYPATH/
   start:
     - npm start
   stop:
