@@ -1,9 +1,10 @@
 ---
 hooks:
   build:
-    - npm install
+    - source /opt/cpanel/ea-nodejs18/bin/enable_nodejs18
+    - npm install --legacy-peer-deps
     - npm run build
-    - export DEPLOYPATH=/home/USERNAME/public_html
+    - export DEPLOYPATH=~/public_html
     - /bin/cp -R dist/* $DEPLOYPATH/
   start:
     - npm start

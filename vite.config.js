@@ -12,5 +12,9 @@ export default defineConfig({
       legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true'
     }),
     react(),
-  ]
+  ],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+  }
 });
